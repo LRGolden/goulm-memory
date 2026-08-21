@@ -210,6 +210,31 @@ if ok {
 }
 ```
 
+## Embeddings
+
+Busqueda semantica via embeddings. Ver [EMBEDDINGS.md](EMBEDDINGS.md) para
+guia completa con ejemplos de OpenAI y modelos locales.
+
+```go
+// Configurar provider
+store.SetEmbedder(&MiProvider{apiKey: "..."})
+
+// Pre-calcul (recomendado, evita lock)
+emb, _ := embedder.Embed("texto")
+store.Remember(memory.RememberOptions{
+    Key: "mi-clave", Category: memory.CategoryDecision,
+    Content: "texto", Embedding: emb,
+})
+
+// Busqueda automatica (BM25 + vector)
+ranked, _ := store.Recall("query", &memory.Query{Limit: 5})
+```
+
+## Server HTTP
+
+Ver [SERVER.md](SERVER.md) para el server HTTP que expone el store via
+endpoints JSON, util para clientes Python, TypeScript y otros lenguajes.
+
 ## Mas informacion
 
 - [API.md](API.md) — Referencia completa de todos los tipos y funciones

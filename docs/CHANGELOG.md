@@ -4,6 +4,44 @@ Historial de cambios de `goulm-memory`. Formato
 [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); el módulo sigue
 [SemVer](https://semver.org/).
 
+## [0.4.0] — 2026-08-21
+
+Fundaciones para crecimiento: embeddings para busqueda semantica y server
+HTTP para clientes multi-lenguaje. Sin dependencias nuevas; todo via
+interfaces y stdlib.
+
+### Anadido
+
+- **EmbeddingProvider interface** (`pkg/memory/embedding.go`): interfaz
+  minima para proveedores de embeddings (OpenAI, Cohere, modelos locales).
+  `Embed(text) ([]float64, error)` + `Dimension() int`.
+- **VectorScores**: funcion de similitud coseno que integra embeddings
+  en el pipeline de ranking. Peso fijo 0.3 en combinacion lineal; con
+  RRF se agrega como ranker adicional.
+- **Campo Embedding en Capsule**: `[]float64` con `omitempty`, compatible
+  con archivos JSON y Ambar existentes. Serializado como `embedding>` en
+  formato Ambar.
+- **Embedding en RememberOptions**: embedding pre-calculado para evitar
+  llamadas HTTP dentro del lock de `Remember`.
+- **SetEmbedder/Embedder**: metodos para configurar el provider en el store.
+- **HTTP server** (`cmd/serve`): server minimal que expone 12 endpoints
+  JSON (remember, recall, stats, health, forget, resolve, pin, backup,
+  archive, consolidate, capsules). Flags `-addr` y `-dir`. CORS basico.
+- **Tests**: `TestVectorScores`, `TestCosineSim`, `TestCapsuleEmbedding*`,
+  `TestAmbarEmbeddingRoundtrip`, `TestRememberWithEmbedding`, `TestSetEmbedder`.
+- **docs/EMBEDDINGS.md**: guia de integracion con ejemplos OpenAI y ollama.
+- **docs/SERVER.md**: documentacion del server HTTP con ejemplos Python y
+  TypeScript.
+
+### Cambiado
+
+- **Capsule.Clone()**: deep-copy del slice Embedding.
+- **MergeCapsules**: prioriza embedding del incoming.
+- **Rank pipeline**: integracion de vecScores con nil guard (sin provider =
+  comportamiento identico a v0.3.x).
+- **docs/ADVANCED.md**: secciones de Embeddings y Server HTTP.
+- **docs/API.md**: interfaz EmbeddingProvider en "API completa".
+
 ## [0.3.0] — 2026-08-21
 
 Reestructuracion de la superficie documental para reducir la barrera de
@@ -153,6 +191,7 @@ Versión inicial. Extraído del subsistema de memoria de
 - Al trabajar dentro del repo de Goulm (que usa `go.work`), compilar/testear
   este módulo requiere `$env:GOWORK="off"`.
 
+[0.4.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.0
 [0.3.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.3.0
 [0.2.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.2.0
 [0.1.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.1.0

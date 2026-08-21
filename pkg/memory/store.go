@@ -101,6 +101,7 @@ type MemoryStore struct {
 	archive  map[string]*Capsule // por ID
 	vocab    map[string][]string
 	byKeyIdx map[string]string // key → ID (índice de búsqueda por clave)
+	embedder EmbeddingProvider
 
 	memStamp       fileStamp // marca del memory file en la última carga/persist
 	dirty          bool      // bumps pendientes de persistir (Flush)

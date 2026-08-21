@@ -56,7 +56,8 @@ type Capsule struct {
 	PathScope    string   `json:"path_scope,omitempty"`
 	Origin       Origin   `json:"origin"`
 	Status       Status   `json:"status"`
-	SupersededOn string   `json:"superseded_on,omitempty"`
+	SupersededOn string    `json:"superseded_on,omitempty"`
+	Embedding    []float64 `json:"embedding,omitempty"`
 }
 
 // keyRE valida claves kebab-case (sin colones: están reservados para typed links).
@@ -214,5 +215,6 @@ func (c *Capsule) Clone() *Capsule {
 	out := *c
 	out.Tags = append([]string(nil), c.Tags...)
 	out.Links = append([]string(nil), c.Links...)
+	out.Embedding = append([]float64(nil), c.Embedding...)
 	return &out
 }

@@ -229,6 +229,22 @@ func Importance(c *Capsule, now time.Time) float64
 func BM25Scores(query string, docs []*Capsule) map[string]float64
 ```
 
+### Embeddings
+
+```go
+type EmbeddingProvider interface {
+    Embed(text string) ([]float64, error)
+    Dimension() int
+}
+
+func VectorScores(provider EmbeddingProvider, query string, docs []*Capsule) map[string]float64
+func (s *MemoryStore) SetEmbedder(p EmbeddingProvider)
+func (s *MemoryStore) Embedder() EmbeddingProvider
+```
+
+`RememberOptions` incluye `Embedding []float64` para embedding pre-calculado.
+Ver [EMBEDDINGS.md](EMBEDDINGS.md) para guia completa.
+
 ### Grafo
 
 ```go

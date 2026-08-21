@@ -59,6 +59,13 @@ func MarshalAmbar(project string, capsules []*Capsule) string {
 		if c.SupersededOn != "" {
 			sb.WriteString("superseded>" + c.SupersededOn + "\n")
 		}
+		if len(c.Embedding) > 0 {
+			parts := make([]string, len(c.Embedding))
+			for i, v := range c.Embedding {
+				parts[i] = strconv.FormatFloat(v, 'f', -1, 64)
+			}
+			sb.WriteString("embedding>" + strings.Join(parts, ",") + "\n")
+		}
 	}
 	return sb.String()
 }
@@ -159,6 +166,22 @@ func UnmarshalAmbar(data string) (project string, capsules []*Capsule, err error
 		}
 		if strings.HasPrefix(line, "superseded>") {
 			cur.SupersededOn = strings.TrimPrefix(line, "superseded>")
+			continue
+		}
+		if strings.HasPrefix(line, "embedding>") {
+			raw := strings.TrimPrefix(line, "embedding>")
+			if raw != "" {
+				parts := strings.Split(raw, ",")
+				emb := make([]float64, 0, len(parts))
+				for _, p := range parts {
+					if f, err := strconv.ParseFloat(strings.TrimSpace(p), 64); err == nil {
+						emb = append(emb, f)
+					}
+				}
+				if len(emb) > 0 {
+					cur.Embedding = emb
+				}
+			}
 			continue
 		}
 		// Línea de atributos.

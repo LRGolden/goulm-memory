@@ -47,6 +47,9 @@ func MergeCapsules(existing, incoming *Capsule) *Capsule {
 	if incoming.File != "" {
 		out.File = incoming.File
 	}
+	if len(incoming.Embedding) > 0 {
+		out.Embedding = incoming.Embedding
+	}
 	return out
 }
 

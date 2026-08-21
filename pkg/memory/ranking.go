@@ -131,6 +131,10 @@ func (s *MemoryStore) Rank(opts RankOptions) ([]Ranked, error) {
 
 	// 4. Puntuación.
 	bm25 := BM25Scores(query, allVisible)
+	var vecScores map[string]float64
+	if s.embedder != nil {
+		vecScores = VectorScores(s.embedder, query, allVisible)
+	}
 
 	type scored struct {
 		c    *Capsule
@@ -146,13 +150,19 @@ func (s *MemoryStore) Rank(opts RankOptions) ([]Ranked, error) {
 		}
 		var sc float64
 		if opts.RRF {
-			// Fusión de rangos: BM25 (x3) + centralidad (x1).
+			// Fusión de rangos: BM25 (x3) + centralidad (x1) + vector (x1 si disponible).
 			rankers := []map[string]float64{bm25, bm25, bm25, centrality}
+			if vecScores != nil {
+				rankers = append(rankers, vecScores)
+			}
 			sc = rrfScore(rankers, c.Key, len(allVisible))
 		} else {
 			sc = bm25[c.Key] +
 				0.4*centrality[c.Key] +
 				0.25*Importance(c, now)
+			if vecScores != nil {
+				sc += 0.3 * vecScores[c.Key]
+			}
 			if seeds[c.Key] {
 				sc += 1.0 // seed bonus
 			}

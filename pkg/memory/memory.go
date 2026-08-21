@@ -25,7 +25,8 @@ type RememberOptions struct {
 	Priority  int
 	PathScope string
 	Origin    Origin
-	Verbatim  bool // true: sin inferir tags ni recalcular calidad
+	Verbatim  bool      // true: sin inferir tags ni recalcular calidad
+	Embedding []float64 // embedding pre-calculado (opcional)
 }
 
 // RememberResult describe el resultado de un guardado.
@@ -65,6 +66,9 @@ func (s *MemoryStore) Remember(o RememberOptions) (RememberResult, error) {
 	if o.Origin != "" {
 		caps.Origin = o.Origin
 		caps.Confidence = ConfidenceFor(o.Origin)
+	}
+	if len(o.Embedding) > 0 {
+		caps.Embedding = append([]float64(nil), o.Embedding...)
 	}
 
 	res := RememberResult{}
@@ -425,6 +429,21 @@ func (s *MemoryStore) Vocab() map[string][]string {
 		out[k] = append([]string(nil), v...)
 	}
 	return out
+}
+
+// SetEmbedder configura el proveedor de embeddings. Si es nil, la busqueda
+// vectorial se desactiva (comportamiento identico a v0.3.x).
+func (s *MemoryStore) SetEmbedder(p EmbeddingProvider) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.embedder = p
+}
+
+// Embedder devuelve el proveedor de embeddings configurado (puede ser nil).
+func (s *MemoryStore) Embedder() EmbeddingProvider {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.embedder
 }
 
 // ListActive devuelve las cápsulas activas visibles ordenadas por importancia.
