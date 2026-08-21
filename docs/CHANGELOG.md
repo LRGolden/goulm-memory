@@ -4,7 +4,32 @@ Historial de cambios de `goulm-memory`. Formato
 [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); el módulo sigue
 [SemVer](https://semver.org/).
 
-## [0.2.0] — 2026-08-21
+## [0.3.0] — 2026-08-21
+
+Reestructuracion de la superficie documental para reducir la barrera de
+entrada. El codigo no cambia; solo se reorganiza la documentacion en
+niveles: esencial (consumidor general), completa (referencia) y avanzada
+(integracion con sesiones, ledger, grafo y tools).
+
+### Anadido
+
+- **docs/QUICKSTART.md**: guia paso a paso con 3 ejemplos (recordar,
+  buscar, ver estado). Entrada de 1 pagina para consumidores nuevos.
+- **docs/ADVANCED.md**: guia de integracion avanzada con sesiones, ledger,
+  grafo de enlaces, tools y ejemplo completo de integracion con un agente.
+- **docs/TOOLS.md**: tabla de las 13 tools con parametros, extraida del
+  README para desacoplar la referencia tecnica de la presentacion.
+
+### Cambiado
+
+- **README.md**: reescrito (~50 lineas vs 189 anteriores). Enfocado en
+  que es, ejemplo minimo de 10 lineas y links a documentacion. Eliminadas
+  las secciones de concurrencia, seguridad y tabla de tools (ya documentadas
+  en archivos dedicados).
+- **docs/API.md**: reorganizado en "API esencial" (tipos, Config, Remember,
+  Recall, Stats, Render, metadatos) y "API completa" (scoring, grafo,
+  sesiones, ledger, reportes, git, ambar, tools). El consumidor nuevo solo
+  necesita la primera seccion.
 
 Revisión de calidad y corrección de inconsistencias entre el código fuente y
 la documentación, además de activar funcionalidad半implementada y eliminar
@@ -128,5 +153,6 @@ Versión inicial. Extraído del subsistema de memoria de
 - Al trabajar dentro del repo de Goulm (que usa `go.work`), compilar/testear
   este módulo requiere `$env:GOWORK="off"`.
 
+[0.3.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.3.0
 [0.2.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.2.0
 [0.1.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.1.0

@@ -1,205 +1,189 @@
 # Referencia de API
 
-Referencia pública de `github.com/LRGolden/goulm-memory`. Módulo Go
-independiente; requiere `go 1.26` o superior.
-
-> Nota: si se trabaja dentro del repo de Goulm (que tiene un `go.work`),
-> compilar/testear este módulo requiere `$env:GOWORK="off"`.
+Referencia de `github.com/LRGolden/goulm-memory`. Requiere Go 1.26+.
 
 ```go
-import (
-	"github.com/LRGolden/goulm-memory/pkg/memory"
-	"github.com/LRGolden/goulm-memory/pkg/tools"
-)
+import "github.com/LRGolden/goulm-memory/pkg/memory"
 ```
 
 ---
 
-## `pkg/memory`
+## API esencial
+
+Lo que necesitas para recordar, buscar y mantener capsulas.
 
 ### Tipos base
 
 ```go
 type Category string
 const (
-	CategoryDecision  Category = "decision"
-	CategoryPattern   Category = "pattern"
-	CategoryBug       Category = "bug"
-	CategoryKnowledge Category = "knowledge"
+    CategoryDecision  Category = "decision"
+    CategoryPattern   Category = "pattern"
+    CategoryBug       Category = "bug"
+    CategoryKnowledge Category = "knowledge"
 )
 
 type Status string
 const (
-	StatusActive   Status = "active"
-	StatusObsolete Status = "obsolete"
+    StatusActive   Status = "active"
+    StatusObsolete Status = "obsolete"
 )
 
 type Origin string
 const (
-	OriginHuman    Origin = "human"
-	OriginAgent    Origin = "agent"
-	OriginInferred Origin = "inferred"
+    OriginHuman    Origin = "human"
+    OriginAgent    Origin = "agent"
+    OriginInferred Origin = "inferred"
 )
 
 type Format string
 const (
-	FormatJSON  Format = "json"
-	FormatAmbar Format = "ambar"
+    FormatJSON  Format = "json"
+    FormatAmbar Format = "ambar"
 )
 ```
 
-### `Capsule`
+### Capsule
 
 ```go
 type Capsule struct {
-	ID           string   // único (hex, 4 bytes aleatorios)
-	Category     Category
-	Key          string   // clave corta y estable
-	Content      string
-	File         string   `json:"file,omitempty"`
-	Tags         []string
-	Date         string   // YYYY-MM-DD
-	TTL          string   // "30d" relativo o "YYYY-MM-DD" absoluto
-	Accessed     int      // contador de accesos
-	Links        []string // claves enlazadas (grafo)
-	Quality      float64  // [0,1]
-	Confidence   float64  // [0,1]
-	LastAccessed string   // ISO, opcional
-	Priority     int      // 0-5
-	PathScope    string   // glob de ámbito
-	Origin       Origin
-	Status       Status
-	SupersededOn string   // fecha de soft-delete, opcional
+    ID           string   `json:"id"`
+    Category     Category `json:"category"`
+    Key          string   `json:"key"`
+    Content      string   `json:"content"`
+    File         string   `json:"file,omitempty"`
+    Tags         []string `json:"tags,omitempty"`
+    Date         string   `json:"date"`
+    TTL          string   `json:"ttl,omitempty"`
+    Accessed     int      `json:"accessed"`
+    Links        []string `json:"links,omitempty"`
+    Quality      float64  `json:"quality"`
+    Confidence   float64  `json:"confidence"`
+    LastAccessed string   `json:"last_accessed,omitempty"`
+    Priority     int      `json:"priority"`
+    PathScope    string   `json:"path_scope,omitempty"`
+    Origin       Origin   `json:"origin"`
+    Status       Status   `json:"status"`
+    SupersededOn string   `json:"superseded_on,omitempty"`
 }
 
 func NewCapsule(cat Category, key, content string) (*Capsule, error)
-func ValidCategory(c Category) bool
-func ValidStatus(s Status) bool
-func ValidOrigin(o Origin) bool
-func ConfidenceFor(o Origin) float64   // human=0.95, agent=0.75, inferred=0.5
 func NewID() string
-
-func (c *Capsule) IsExpired(now time.Time) bool
-func (c *Capsule) IsVisible(now time.Time, asOf string) bool
-func (c *Capsule) FullText() string
-func (c *Capsule) BumpAccess(now time.Time)
-func (c *Capsule) Normalized() string
 func (c *Capsule) Clone() *Capsule
-func (c *Capsule) ApplyTTL(ttl string, now time.Time)
-func ResolveTTL(ttl string, now time.Time) string
 ```
 
-`NewCapsule` valida categoría, clave (`keyRE`) y contenido no vacío. El ID y
-la fecha (`Date`) se generan automáticamente.
-
-### `Config` / `MemoryStore`
+### Config / NewStore
 
 ```go
 type Config struct {
-	Dir        string // ~/.goulm/memory/<proyecto-id>
-	Format     Format // json (default) | ambar
-	Project    string // nombre declarado en los archivos
-	MaxEntries int    // límite de cápsulas activas (default 100)
-	MaxBackups int    // backups a conservar (default 10)
+    Dir        string // directorio de persistencia
+    Format     Format // json (default) | ambar
+    Project    string // nombre del proyecto
+    MaxEntries int    // limite de capsulas activas (default 100)
+    MaxBackups int    // backups a conservar (default 10)
 }
 
 func NewStore(cfg Config) (*MemoryStore, error)
 ```
 
-#### Escritura / ciclo de vida
+### Escritura
 
 ```go
 type RememberOptions struct {
-	Key       string
-	Category  Category
-	Content   string
-	Tags      []string
-	Links     []string
-	Origin    Origin
-	Priority  int      // 0-5
-	TTL       string
-	PathScope string
-	Verbatim  bool     // true: sin inferir tags ni recalcular calidad
+    Key       string
+    Category  Category
+    Content   string
+    Tags      []string
+    Links     []string
+    Origin    Origin
+    Priority  int      // 0-5
+    TTL       string
+    PathScope string
+    Verbatim  bool     // true: sin inferir tags ni recalcular calidad
 }
 
 type RememberResult struct {
-	Capsule *Capsule
-	Created bool     // true = cápsula nueva
-	Merged  bool     // true = se fusionó con una existente
+    Capsule *Capsule
+    Created bool
+    Merged  bool
 }
 
 func (s *MemoryStore) Remember(o RememberOptions) (RememberResult, error)
 func (s *MemoryStore) Forget(key string, hard bool) (bool, error)
 func (s *MemoryStore) Resolve(key string) (bool, error)
 func (s *MemoryStore) Pin(key string, priority int) (bool, error)
-func (s *MemoryStore) ArchiveOld() (int, error)
-func (s *MemoryStore) Clear() (int, error)
-func (s *MemoryStore) ImportCapsules(capsules []*Capsule) (int, error)
-func (s *MemoryStore) ExportJSON() ([]byte, error)
-func (s *MemoryStore) SetFormat(f Format) error
 func (s *MemoryStore) Flush() error
 ```
 
-- `Forget`: `hard=false` marca `obsolete` y registra `SupersededOn` (soft delete); `hard=true` elimina.
-- `Resolve`: restaura una cápsula soft-deleted a `active` y limpia `SupersededOn` (revierte `memory_forget`).
-- `Pin`: establece `Priority` (0-5); `0` quita el pin.
-- `ImportCapsules`: importa y **fusiona** contra las claves existentes.
+- `Forget(key, false)`: soft delete, marca `obsolete` y registra `SupersededOn`.
+- `Forget(key, true)`: hard delete, elimina permanentemente.
+- `Resolve(key)`: restaura soft-deleted a `active` y limpia `SupersededOn`.
 
-#### Consulta
+### Consulta
 
 ```go
 type Query struct {
-	Text         string          // texto o intento a buscar
-	Category     Category        // filtro opcional
-	Tags         []string        // filtro AND: todos presentes
-	FromDate     string          // YYYY-MM-DD
-	ToDate       string          // YYYY-MM-DD
-	PathScope    string          // glob
-	AsOf         string          // vista temporal YYYY-MM-DD
-	Limit        int             // default 6
-	Graph        bool            // expandir ego-subgraph
-	Hops         int             // 1 o 2 (default 1)
-	RRF          bool            // fusión de rangos en vez de score lineal
-	SessionFiles map[string]bool // archivos tocados por la sesión actual
-}
-
-type RankOptions struct {
-	Query
-	Now time.Time
+    Text         string
+    Category     Category
+    Tags         []string
+    FromDate     string          // YYYY-MM-DD
+    ToDate       string          // YYYY-MM-DD
+    PathScope    string          // glob
+    AsOf         string          // vista temporal YYYY-MM-DD
+    Limit        int             // default 6
+    Graph        bool            // expandir ego-subgraph
+    Hops         int             // 1 o 2 (default 1)
+    RRF          bool            // fusion de rangos
+    SessionFiles map[string]bool // archivos tocados por la sesion
 }
 
 type Ranked struct {
-	Capsule *Capsule
-	Score   float64
-	IsSeed  bool   // coincidencia directa
-	Dist    int    // 0 = seed; 1, 2 = vecino a N saltos
+    Capsule *Capsule
+    Score   float64
+    IsSeed  bool
+    Dist    int
 }
 
 func (s *MemoryStore) Recall(query string, opts *Query) ([]Ranked, error)
 func (s *MemoryStore) SmartRecall(intent string, limit int, sessionFiles ...map[string]bool) ([]Ranked, error)
 func (s *MemoryStore) Suggest(context string, limit int, sessionFiles ...map[string]bool) ([]Ranked, error)
-func (s *MemoryStore) Rank(opts RankOptions) ([]Ranked, error)
 func (s *MemoryStore) ListActive(limit int) []*Capsule
 ```
 
-- `Recall` equivale a `Rank` con `Now=time.Now()` (y `Limit` 6 si no se pasa
-  en el `Query`).
-- `SmartRecall` = `Rank` con `Graph:true, Hops:1` (intento semántico).
-- `Suggest` = `Rank` sobre el contexto sin keywords estrictas.
-
-#### Presupuestos de render
+### Render
 
 ```go
 type Budget string
 const (
-	BudgetTiny   Budget = "tiny"
-	BudgetNormal Budget = "normal"
-	BudgetDeep   Budget = "deep"
+    BudgetTiny   Budget = "tiny"
+    BudgetNormal Budget = "normal"
+    BudgetDeep   Budget = "deep"
 )
+
 func Render(rs []Ranked, budget Budget) string
 ```
 
-#### Metadatos / vocabulario
+### Estado
+
+```go
+type StatsView struct {
+    Total       int            `json:"total"`
+    ByCategory  map[string]int `json:"by_category"`
+    ByOrigin    map[string]int `json:"by_origin"`
+    ByStatus    map[string]int `json:"by_status"`
+    Archived    int            `json:"archived"`
+    Expired     int            `json:"expired"`
+    Pinned      int            `json:"pinned"`
+    AvgQuality  float64        `json:"avg_quality"`
+    FileSizeKB  float64        `json:"file_size_kb"`
+    LastUpdated string         `json:"last_updated"`
+}
+
+func (s *MemoryStore) Stats() (StatsView, error)
+func RenderStats(st StatsView) string
+```
+
+### Metadatos
 
 ```go
 func (s *MemoryStore) Dir() string
@@ -207,17 +191,47 @@ func (s *MemoryStore) Project() string
 func (s *MemoryStore) Format() Format
 func (s *MemoryStore) SetVocab(v map[string][]string) error
 func (s *MemoryStore) Vocab() map[string][]string
-func (s *MemoryStore) Sessions(agent string) (*SessionTracker, error)
 ```
 
-### Scoring y grafo
+---
+
+## API completa
+
+Funciones adicionales para uso avanzado. Ver [ADVANCED.md](ADVANCED.md)
+para guia de integracion.
+
+### Escritura extendida
+
+```go
+func (s *MemoryStore) ArchiveOld() (int, error)
+func (s *MemoryStore) Clear() (int, error)
+func (s *MemoryStore) ImportCapsules(capsules []*Capsule) (int, error)
+func (s *MemoryStore) ExportJSON() ([]byte, error)
+func (s *MemoryStore) SetFormat(f Format) error
+```
+
+### Consulta avanzada
+
+```go
+type RankOptions struct {
+    Query
+    Now time.Time
+}
+
+func (s *MemoryStore) Rank(opts RankOptions) ([]Ranked, error)
+```
+
+### Scoring
 
 ```go
 func QualityScore(c *Capsule, now time.Time) float64
 func Importance(c *Capsule, now time.Time) float64
-
 func BM25Scores(query string, docs []*Capsule) map[string]float64
+```
 
+### Grafo
+
+```go
 type Graph struct { /* interno */ }
 func BuildGraph(capsules []*Capsule) *Graph
 func LinkKey(token string) string
@@ -233,34 +247,23 @@ func (g *Graph) ShortestPath(a, b string) []string
 ### Sesiones
 
 ```go
-const SessionTTL = 10 * time.Minute
-
-type Heartbeat struct {
-	ID        string            `json:"id"`
-	Agent     string            `json:"agent"`
-	PID       int               `json:"pid"`
-	Branch    string            `json:"branch"`
-	StartedAt string            `json:"started_at"`
-	LastSeen  string            `json:"last_seen"`
-	Files     map[string]string `json:"files"` // path -> ISO de último toque
-	Ended     bool              `json:"ended"`
-}
+func (s *MemoryStore) Sessions(agent string) (*SessionTracker, error)
 
 type ActiveSession struct {
-	ID       string
-	Agent    string
-	Branch   string
-	StartedAt string
-	LastSeen time.Time
-	Files    []string
-	IsSelf   bool
-	Ended    bool
+    ID        string
+    Agent     string
+    Branch    string
+    StartedAt string
+    LastSeen  time.Time
+    Files     []string
+    IsSelf    bool
+    Ended     bool
 }
 
 type FileConflict struct {
-	File     string
-	Sessions []string
-	Conflict bool
+    File     string
+    Sessions []string
+    Conflict bool
 }
 
 func NewSessionTracker(dir, agent string) (*SessionTracker, error)
@@ -276,87 +279,24 @@ func (t *SessionTracker) SessionFiles() map[string]bool
 func RenderSessions(sessions []ActiveSession, conflicts []FileConflict, conflictsOnly bool) string
 ```
 
-El `SessionTracker` usa `GOULM_SESSION_ID` como ID de sesión si está definido;
-si no, genera uno propio. `SetRoot("")` deja la rama al cwd; `SetRoot(ruta)`
-usa el repo de `ruta` (`CurrentBranch`).
-
 ### Ledger
 
 ```go
-type Ledger struct {
-	Dir     string
-	Root    string
-	Project string
-	Active  string
-	Window  int
-	Enabled bool
-	Reason  string // por qué está deshabilitado (si aplica)
-	Lock    string
-}
+func NewLedger(cwd string, opts ...Option) (*Ledger, error)
 
 type LedgerEvent struct {
-	V          int    `json:"v"`
-	TS         string `json:"ts"` // RFC3339
-	Type       string `json:"type"`
-	Action     string `json:"action,omitempty"`
-	Session    string `json:"session,omitempty"`
-	Path       string `json:"path,omitempty"`
-	Detail     string `json:"detail,omitempty"`
-	Hash       string `json:"hash,omitempty"`
-	Risk       string `json:"risk,omitempty"`
-	Status     string `json:"status,omitempty"`
-	Approved   string `json:"approved,omitempty"`
-	Tokens     int    `json:"tokens,omitempty"`
-	CostUSD    float64 `json:"cost_usd,omitempty"`
-	DurationMs int64  `json:"duration_ms,omitempty"`
-	Turn       int    `json:"turn,omitempty"`
-	Test       bool   `json:"test,omitempty"`
-	ID         string `json:"id,omitempty"`
+    V          int     `json:"v"`
+    TS         string  `json:"ts"`
+    Type       string  `json:"type"`
+    Action     string  `json:"action,omitempty"`
+    Session    string  `json:"session,omitempty"`
+    Path       string  `json:"path,omitempty"`
+    Detail     string  `json:"detail,omitempty"`
+    Hash       string  `json:"hash,omitempty"`
+    Risk       string  `json:"risk,omitempty"`
+    Status     string  `json:"status,omitempty"`
+    DurationMs int64   `json:"duration_ms,omitempty"`
 }
-```
-
-Constantes:
-
-```go
-const DefaultLedgerWindow = 200
-
-const (
-	EventApproval  = "approval"
-	EventBranch    = "branch"
-	EventCheckout  = "checkout"
-	EventCommit    = "commit"
-	EventEdit      = "edit"
-	EventError     = "error"
-	EventMemory    = "memory"
-	EventMilestone = "milestone"
-	EventSession   = "session"
-	EventSystem    = "system"
-	EventTest      = "test"
-	EventTool      = "tool"
-)
-
-const (
-	StatusOK      = "ok"
-	StatusError   = "error"
-	StatusDenied  = "denied"
-	StatusBlocked = "blocked"
-)
-
-const (
-	ApprovedYes = "yes"
-	ApprovedNo  = "no"
-	ApprovedNA  = "na"
-)
-```
-
-```go
-func NewLedger(cwd string, opts ...Option) (*Ledger, error)
-func WithHome(dir string) Option   // aislar el ledger en dir
-func WithWindow(n int) Option
-func WithMaxDepth(d int) Option    // búsqueda de raíz (default 10)
-
-func DetectRoot(cwd string, maxDepth int) string
-func ProjectID(cwd string) string  // id de proyecto (ver gitutil)
 
 func FormatEvent(ev LedgerEvent) string
 func FormatEventFull(ev LedgerEvent) string
@@ -366,180 +306,81 @@ func (l *Ledger) AppendTool(action, path, status, risk string, durationMs int64,
 func (l *Ledger) AppendEdit(action, path, detail, session string, isTest bool) error
 func (l *Ledger) AppendCommit(hash, subject, branch, session string) error
 func (l *Ledger) AppendError(action, detail, session string, isTest bool) error
-func (l *Ledger) AppendMemory(action, key, category, session string) error
-func (l *Ledger) AppendSessionStart(session string) error
-func (l *Ledger) AppendSessionEnd(session string) error
 func (l *Ledger) AppendMilestone(msg, session string) error
-func (l *Ledger) AppendApproval(action, approved, session string, isTest bool) error
 func (l *Ledger) Tail(n int, typ string, includeHistory bool) []LedgerEvent
 func (l *Ledger) Stats() LedgerStats
-func (l *Ledger) Export(since, to string) (string, error)
 func (l *Ledger) Summary() string
 func (l *Ledger) CompactNow() error
-```
-
-`NewLedger` se **deshabilita** (sin error) si no hay permisos de escritura:
-`Enabled=false` con `Reason` explicativo. `GOULM_LEDGER=off` lo deshabilita
-desde entorno.
-
-```go
-type LedgerStats struct {
-	Enabled      bool
-	Dir          string
-	Project      string
-	Total        int
-	ActiveLines  int
-	ArchiveFiles int
-	ArchiveLines int
-	ByType       map[string]int
-}
 ```
 
 ### Reportes y mantenimiento
 
 ```go
-type StatsView struct {
-	Total       int            `json:"total"`
-	ByCategory  map[string]int `json:"by_category"`
-	ByOrigin    map[string]int `json:"by_origin"`
-	ByStatus    map[string]int `json:"by_status"`
-	Archived    int            `json:"archived"`
-	Expired     int            `json:"expired"`
-	Pinned      int            `json:"pinned"`
-	AvgQuality  float64        `json:"avg_quality"`
-	FileSizeKB  float64        `json:"file_size_kb"`
-	LastUpdated string         `json:"last_updated"`
-}
-
 type DiffReport struct {
-	Since   string      `json:"since"`
-	New     []*Capsule  `json:"new"`
-	Updated []*Capsule  `json:"updated"`
+    Since   string     `json:"since"`
+    New     []*Capsule `json:"new"`
+    Updated []*Capsule `json:"updated"`
 }
 
 type ConsolidateReport struct {
-	Before         int `json:"before"`
-	After          int `json:"after"`
-	Merged         int `json:"merged"`
-	NearDuplicates int `json:"near_duplicates"`
-	Removed        int `json:"removed"`
+    Before         int `json:"before"`
+    After          int `json:"after"`
+    Merged         int `json:"merged"`
+    NearDuplicates int `json:"near_duplicates"`
+    Removed        int `json:"removed"`
 }
 
 type HealthReport struct {
-	Score           int      `json:"score"`
-	Entries         int      `json:"entries"`
-	AvgQuality      float64  `json:"avg_quality"`
-	OrphanLinks     []string `json:"orphan_links"`
-	ExactDuplicates int      `json:"exact_duplicates"`
-	ExpiredTTL      []string `json:"expired_ttl"`
-	BrokenFiles     []string `json:"broken_files"`
-	MissingEvidence []string `json:"missing_evidence"`
-	StaleClaims     []string `json:"stale_claims"`
-	Secrets         []string `json:"secrets"`
-	Warnings        int      `json:"warnings"`
+    Score           int      `json:"score"`
+    Entries         int      `json:"entries"`
+    AvgQuality      float64  `json:"avg_quality"`
+    OrphanLinks     []string `json:"orphan_links"`
+    ExactDuplicates int      `json:"exact_duplicates"`
+    ExpiredTTL      []string `json:"expired_ttl"`
+    BrokenFiles     []string `json:"broken_files"`
+    MissingEvidence []string `json:"missing_evidence"`
+    StaleClaims     []string `json:"stale_claims"`
+    Secrets         []string `json:"secrets"`
+    Warnings        int      `json:"warnings"`
 }
 
-func (s *MemoryStore) Stats() (StatsView, error)
 func (s *MemoryStore) Diff(since string) (DiffReport, error)
 func (s *MemoryStore) Backup() (string, error)
 func (s *MemoryStore) Primer(limit int) (string, error)
 func (s *MemoryStore) Health(cwd string) (HealthReport, error)
 func (s *MemoryStore) Consolidate() (ConsolidateReport, error)
 
-func RenderStats(st StatsView) string
 func RenderDiff(rep DiffReport) string
 func RenderHealth(rep HealthReport) string
-
 func MergeCapsules(existing, incoming *Capsule) *Capsule
 func Jaccard(a, b string) float64
 ```
 
-### Git / reflog / tags
+### Git / tags
 
 ```go
 func CurrentBranch(repoDir string) string
 func HasGitDir(repoDir string) bool
 func ProjectID(cwd string) string
-
-type ReflogEntry struct {
-	Hash    string
-	Subject string
-	TS      string
-}
-func CurrentHead(repoDir string) string
-func ReflogNew(repoDir, fromHash string) []ReflogEntry
-
 func InferTags(content, key string, projectVocab map[string][]string) []string
 func ExtractProjectDeps(dir string) map[string][]string
 ```
 
-`ExtractProjectDeps` lee `go.mod`, `package.json` y `requirements.txt` para
-construir el vocabulario del proyecto (p. ej. `{"golang": ["go", "go.mod"]}`).
-`InferTags` combina vocabulario integrado + vocabulario del proyecto.
-
-### Formato Ámbar
+### Formato Ambar
 
 ```go
 func MarshalAmbar(project string, capsules []*Capsule) string
 func UnmarshalAmbar(data string) (project string, capsules []*Capsule, err error)
 ```
 
-Ver [`FORMATS.md`](FORMATS.md).
+Ver [FORMATS.md](FORMATS.md).
 
 ---
 
-## `pkg/tools`
+## pkg/tools
 
-### Tipos
-
-```go
-type RiskLevel int
-const (
-	RiskLow      RiskLevel = iota + 1
-	RiskMedium
-	RiskHigh
-	RiskCritical
-)
-func (r RiskLevel) String() string
-func (r RiskLevel) Color() string
-
-type ToolCategory string
-
-type ToolMetadata struct {
-	Name             string
-	Description      string
-	Category         ToolCategory
-	RiskLevel        RiskLevel
-	RequiresApproval bool
-	Timeout          time.Duration
-	Tags             []string
-}
-
-type Tool struct {
-	Name             string
-	Description      string
-	Parameters       interface{}
-	Execute          func(ctx context.Context, input string) (string, error)
-	RequiresApproval bool
-	IsReadOnly       bool
-	Metadata         ToolMetadata
-	RiskLevel        RiskLevel
-	Category         ToolCategory
-	Timeout          time.Duration
-	Tags             []string
-}
-
-type ToolCall struct {
-	ID        string
-	Name      string
-	Arguments string
-}
-
-type EventSink struct {
-	OnToolStart  func(call *ToolCall)
-	OnToolResult func(call *ToolCall, result string, err error)
-}
-```
+Ver [TOOLS.md](TOOLS.md) para tabla de tools y [ADVANCED.md](ADVANCED.md)
+para guia de integracion.
 
 ### Registry
 
@@ -552,9 +393,6 @@ func (r *Registry) Names() []string
 func (r *Registry) Count() int
 ```
 
-`Register` aplica defaults si el campo viene a cero: timeout 30 s, categoría
-`inspect`, riesgo `low` (o `high` si `RequiresApproval`).
-
 ### Registro de tools
 
 ```go
@@ -562,63 +400,26 @@ func RegisterMemoryTools(r *Registry, store *memory.MemoryStore, tracker *memory
 func RegisterLedgerTools(r *Registry, hook *LedgerHook)
 ```
 
-#### Tools de memoria (11)
-
-Cada tool recibe `input` como **JSON de argumentos** y devuelve texto (o JSON).
-
-| Tool | Parámetros (`input`) | Descripción |
-|------|----------------------|-------------|
-| `memory_remember` | `key`, `category`, `content`, `tags[]`, `priority`, `ttl`, `origin`, `path_scope` | Crea/fusiona una cápsula. |
-| `memory_recall` | `q`, `category`, `tags[]`, `path_scope`, `graph`, `hops`, `rrf`, `limit` | Búsqueda híbrida. |
-| `memory_suggest` | `context`, `limit` | Sugerencias sobre un contexto. |
-| `memory_stats` | `format` (`json`/`text`), `health` (bool) | Estadísticas (+ health check). |
-| `memory_forget` | `key`, `hard` (bool) | Olvida (soft/hard). |
-| `memory_resolve` | `key` | Marca resuelta (soft delete). |
-| `memory_archive` | `older_than` (`24h`/`7d`/`30d`) | Archiva por antigüedad. |
-| `memory_pin` | `key`, `priority` | Fija prioridad (0-5). |
-| `memory_backup` | — | Backup a `backups/`. |
-| `memory_consolidate` | — | Merge de casi-duplicados. |
-| `context_brief` | `limit` | Resumen contextual (categorías + recientes + sugerencias). |
-
-#### Tools de ledger (2)
-
-| Tool | Parámetros | Descripción |
-|------|-----------|-------------|
-| `ledger_tail` | `n`, `type`, `history` | Últimos n eventos (por tipo, opcional historia). |
-| `ledger_log` | `action`, `detail` | Registra un milestone arbitrario. |
-
 ### LedgerHook
 
 ```go
 func NewLedgerHook(ledger *memory.Ledger) *LedgerHook
-func (h *LedgerHook) Ledger() *memory.Ledger
 func (h *LedgerHook) StartSession(session string)
 func (h *LedgerHook) EndSession()
 func (h *LedgerHook) Milestone(msg string)
-func (h *LedgerHook) OnToolStart(call *ToolCall)
-func (h *LedgerHook) OnToolResult(call *ToolCall, result string, err error)
-func (h *LedgerHook) Approval(call *ToolCall, approved, action string)
 func (h *LedgerHook) Wrap(sink *EventSink) *EventSink
 func (h *LedgerHook) Stats() (drops, writes int64)
 func (h *LedgerHook) Close()
 ```
 
-- El writer es **asíncrono** (cola interna); `Close()` drena y cierra.
-- `Wrap` interpone el hook entre un `EventSink` externo y las ejecuciones.
-- `Stats()` devuelve escrituras realizadas y drops por cola llena.
-- Si el ledger está deshabilitado, el hook no registra nada y no bloquea.
-
 ---
 
-## Demo (`cmd/demo`)
+## Demo (cmd/demo)
 
 ```bash
 go run ./cmd/demo [subcomando] [-dir <ruta>]
 ```
 
-- `demo`, `remember`, `recall`, `stats`, `suggest`, `brief`, `pin`, `forget`,
-  `resolve`, `backup`, `archive`, `consolidate`, `ledger-tail`, `ledger-log`,
-  `tools`, `help`.
-- Por defecto: `~/.goulm-memory/<ProjectID>`; ledger aislado en
-  `<dir>/ledger`.
-- Exit codes: `0` éxito, `1` error, `2` uso incorrecto.
+Subcomandos: `demo`, `remember`, `recall`, `stats`, `suggest`, `brief`, `pin`,
+`forget`, `resolve`, `backup`, `archive`, `consolidate`, `ledger-tail`,
+`ledger-log`, `tools`, `help`.
