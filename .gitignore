@@ -1,0 +1,47 @@
+# Binarios
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Binario de proyecto
+goulm-memory
+/cmd/demo/demo
+
+# Test binarios
+*.test
+
+# Cobertura de tests
+*.out
+coverage.html
+
+# Dependencias de Go
+/vendor/
+/go.sum
+
+# Directorios de memoria persistente (datos de usuario)
+.goulm-memory/
+.goulm/
+
+# Archivos de lock temporales
+*.lock
+!go.sum
+
+# Entorno
+.env
+.env.local
+
+# IDE / Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporales
+tmp/
+*.tmp
+*.log
