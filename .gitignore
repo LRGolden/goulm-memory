@@ -41,6 +41,9 @@ coverage.html
 .DS_Store
 Thumbs.db
 
+# Standards privados (no se suben)
+.standards/
+
 # Temporales
 tmp/
 *.tmp
