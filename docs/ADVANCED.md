@@ -220,7 +220,8 @@ guia completa con ejemplos de OpenAI y modelos locales.
 store.SetEmbedder(&MiProvider{apiKey: "..."})
 
 // Pre-calcul (recomendado, evita lock)
-emb, _ := embedder.Embed("texto")
+ctx := context.Background()
+emb, _ := embedder.Embed(ctx, "texto")
 store.Remember(memory.RememberOptions{
     Key: "mi-clave", Category: memory.CategoryDecision,
     Content: "texto", Embedding: emb,

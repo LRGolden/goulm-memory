@@ -24,7 +24,7 @@ func (l *Ledger) compactLocked() {
 	overflow := lines[:before-l.Window]
 	keep := lines[before-l.Window:]
 
-	release, err := lockFile(l.Lock)
+	release, _, err := lockFile(l.Lock)
 	if err != nil {
 		return
 	}

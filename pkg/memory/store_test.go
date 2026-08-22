@@ -9,14 +9,14 @@ import (
 
 func TestLockFileAcquireRelease(t *testing.T) {
 	lockPath := filepath.Join(t.TempDir(), "memory.lock")
-	release, err := lockFile(lockPath)
+	release, _, err := lockFile(lockPath)
 	if err != nil {
 		t.Fatalf("lock: %v", err)
 	}
 	release()
 
 	// Re-adquirir tras liberar debe funcionar.
-	release2, err := lockFile(lockPath)
+	release2, _, err := lockFile(lockPath)
 	if err != nil {
 		t.Fatalf("re-lock: %v", err)
 	}
@@ -25,7 +25,7 @@ func TestLockFileAcquireRelease(t *testing.T) {
 
 func TestLockFileContention(t *testing.T) {
 	lockPath := filepath.Join(t.TempDir(), "memory.lock")
-	release, err := lockFile(lockPath)
+	release, _, err := lockFile(lockPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestLockFileContention(t *testing.T) {
 	// bloquearse hasta que el primero libere. Usamos goroutine + liberación.
 	done := make(chan error, 1)
 	go func() {
-		rel, err := lockFile(lockPath)
+		rel, _, err := lockFile(lockPath)
 		if err != nil {
 			done <- err
 			return
@@ -53,7 +53,7 @@ func TestAtomicWrite(t *testing.T) {
 	if err := atomicWrite(path, []byte("hola"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	release, err := lockFile(path + ".lock")
+	release, _, err := lockFile(path + ".lock")
 	if err != nil {
 		t.Fatal(err)
 	}

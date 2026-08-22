@@ -233,7 +233,7 @@ func BM25Scores(query string, docs []*Capsule) map[string]float64
 
 ```go
 type EmbeddingProvider interface {
-    Embed(text string) ([]float64, error)
+    Embed(ctx context.Context, text string) ([]float64, error)
     Dimension() int
 }
 
@@ -243,6 +243,8 @@ func (s *MemoryStore) Embedder() EmbeddingProvider
 ```
 
 `RememberOptions` incluye `Embedding []float64` para embedding pre-calculado.
+El campo `EmbeddingDim` en `Capsule` registra la dimension del provider al
+momento de almacenar.
 Ver [EMBEDDINGS.md](EMBEDDINGS.md) para guia completa.
 
 ### Grafo

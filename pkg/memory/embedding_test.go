@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"encoding/json"
 	"math"
 	"testing"
@@ -11,7 +12,7 @@ type mockEmbedder struct {
 	dim int
 }
 
-func (m *mockEmbedder) Embed(text string) ([]float64, error) {
+func (m *mockEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
 	emb := make([]float64, m.dim)
 	for i := range emb {
 		emb[i] = float64(len(text)) * float64(i+1) / float64(m.dim)

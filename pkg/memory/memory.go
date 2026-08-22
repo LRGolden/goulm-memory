@@ -69,6 +69,9 @@ func (s *MemoryStore) Remember(o RememberOptions) (RememberResult, error) {
 	}
 	if len(o.Embedding) > 0 {
 		caps.Embedding = append([]float64(nil), o.Embedding...)
+		if s.embedder != nil {
+			caps.EmbeddingDim = s.embedder.Dimension()
+		}
 	}
 
 	res := RememberResult{}

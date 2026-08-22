@@ -1,42 +1,62 @@
 package memory
 
-import "math"
+import (
+	"context"
+	"math"
+	"time"
+)
+
+// DefaultEmbedTimeout es el timeout por defecto para llamadas Embed.
+const DefaultEmbedTimeout = 5 * time.Second
 
 // EmbeddingProvider es la interfaz que deben implementar los proveedores
 // de embeddings (OpenAI, Cohere, modelos locales, etc.).
+//
+// Las implementaciones deben ser seguras para uso concurrente por multiples
+// goroutines (el store puede llamar Embed desde multiples Recall simultaneos).
 //
 // La libreria no importa ningun proveedor. El usuario trae el suyo:
 //
 //	type MiProvider struct{ apiKey string }
 //
-//	func (p *MiProvider) Embed(text string) ([]float64, error) {
-//	    // llamada a la API de embeddings
+//	func (p *MiProvider) Embed(ctx context.Context, text string) ([]float64, error) {
+//	    // llamada a la API de embeddings, respetando ctx
 //	}
 //	func (p *MiProvider) Dimension() int { return 1536 }
 type EmbeddingProvider interface {
 	// Embed genera un vector de embeddings para el texto dado.
-	Embed(text string) ([]float64, error)
+	// El contexto puede cancelarse si el proveedor tarda demasiado.
+	Embed(ctx context.Context, text string) ([]float64, error)
 
-	// Dimension devuelve la dimensionality del vector.
+	// Dimension devuelve la dimensionalidad del vector.
 	Dimension() int
 }
 
 // VectorScores calcula similitud coseno entre el query y cada capsula.
 // El query se embebe una vez; cada capsula usa su embedding pre-calculado.
 // Devuelve un mapa key→score normalizado a [0,1].
+// Valida que las dimensiones coincidan entre query y capsulas almacenadas.
 func VectorScores(provider EmbeddingProvider, query string, docs []*Capsule) map[string]float64 {
 	out := make(map[string]float64, len(docs))
 	if provider == nil || query == "" {
 		return out
 	}
 
-	qEmb, err := provider.Embed(query)
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultEmbedTimeout)
+	defer cancel()
+	qEmb, err := provider.Embed(ctx, query)
 	if err != nil || len(qEmb) == 0 {
 		return out
 	}
 
+	expectedDim := provider.Dimension()
 	for _, c := range docs {
 		if len(c.Embedding) == 0 {
+			continue
+		}
+		// Validar dimension: si no coincide con el provider actual,
+		// saltar la capsula (evita resultados erroneos de cosineSim).
+		if expectedDim > 0 && len(c.Embedding) != expectedDim {
 			continue
 		}
 		out[c.Key] = cosineSim(qEmb, c.Embedding)

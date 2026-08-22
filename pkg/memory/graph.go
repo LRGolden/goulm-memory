@@ -59,20 +59,34 @@ func BuildGraph(capsules []*Capsule) *Graph {
 	}
 
 	// Tags compartidas: si dos cápsulas comparten ≥2 tags → edge sintético.
-	for i := range capsules {
-		for j := i + 1; j < len(capsules); j++ {
-			a, b := capsules[i], capsules[j]
-			if a == nil || b == nil || a.Key == "" || b.Key == "" || a.Key == b.Key {
-				continue
-			}
-			if _, ok := g.byKey[a.Key]; !ok {
-				continue
-			}
-			if _, ok := g.byKey[b.Key]; !ok {
-				continue
-			}
-			if sharedTagCount(a.Tags, b.Tags) >= 2 {
-				g.addEdge(a.Key, b.Key)
+	// Implementación O(N*T) con índice invertido tag→keys en vez de O(N²).
+	tagIndex := make(map[string][]string)
+	for _, c := range capsules {
+		if c == nil || c.Key == "" {
+			continue
+		}
+		for _, tag := range c.Tags {
+			tagIndex[tag] = append(tagIndex[tag], c.Key)
+		}
+	}
+	// Para cada tag, incrementar contador de co-ocurrencia por par de keys.
+	// Si un par alcanza ≥2, crear edge.
+	sharedCount := make(map[[2]string]int)
+	for _, keys := range tagIndex {
+		if len(keys) < 2 {
+			continue
+		}
+		for i := 0; i < len(keys); i++ {
+			for j := i + 1; j < len(keys); j++ {
+				a, b := keys[i], keys[j]
+				if a > b {
+					a, b = b, a
+				}
+				pair := [2]string{a, b}
+				sharedCount[pair]++
+				if sharedCount[pair] == 2 {
+					g.addEdge(a, b)
+				}
 			}
 		}
 	}

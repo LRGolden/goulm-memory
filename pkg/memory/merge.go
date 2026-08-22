@@ -167,8 +167,11 @@ func (s *MemoryStore) Consolidate() (ConsolidateReport, error) {
 	}
 
 	// Fase 3: near-duplicates (Jaccard ≥ 0.7, misma categoría).
-	for i := 0; i < len(unique); i++ {
-		for j := i + 1; j < len(unique); j++ {
+	// Limitado a maxNearDupPairs comparaciones para evitar O(N²) con
+	// colecciones grandes (>500 cápsulas).
+	pairs := 0
+	for i := 0; i < len(unique) && pairs < maxNearDupPairs; i++ {
+		for j := i + 1; j < len(unique) && pairs < maxNearDupPairs; j++ {
 			a, b := unique[i], unique[j]
 			if a == nil || b == nil || a.Key == b.Key {
 				continue
@@ -176,6 +179,7 @@ func (s *MemoryStore) Consolidate() (ConsolidateReport, error) {
 			if a.Category != b.Category {
 				continue
 			}
+			pairs++
 			if Jaccard(a.Content, b.Content) < nearDupThreshold {
 				continue
 			}

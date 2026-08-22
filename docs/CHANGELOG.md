@@ -4,6 +4,58 @@ Historial de cambios de `goulm-memory`. Formato
 [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); el módulo sigue
 [SemVer](https://semver.org/).
 
+## [0.4.1] — 2026-08-22
+
+Correcciones de robustez para produccion: file locking multi-plataforma,
+proteccion contra deadlocks, y optimizaciones de rendimiento a escala.
+
+### Corregido
+
+- **Dirty flag bug** (`pkg/memory/store.go`): `Flush()` ahora pone `dirty=false`
+  despues de que `persistLocked()` retorna exito, no antes. Previene perdida
+  silenciosa de datos si la persistencia falla (disco lleno, lock timeout).
+- **PID recycling** (`pkg/memory/store.go`): lock file ahora incluye UUID v4
+  ademas de PID y timestamp. Previene que un PID reusado por el OS retenga
+  el lock innecesariamente.
+- **Stale timeout con archivos grandes** (`pkg/memory/store.go`): agregado
+  heartbeat de refresh cada 5s durante `persistLocked`. Previene que otro
+  proceso robe el lock mientras el holder esta escribiendo un archivo grande.
+- **Thundering herd** (`pkg/memory/store.go`): jitter aleatorio (100-150ms)
+  en el sleep de lock contention. Reduce colision de retries simultaneos.
+- **Clock backward** (`pkg/memory/store.go`): locks con timestamp futuro
+  (>5s) se tratan como stale. Protege contra saltos de NTP.
+- **Embed() timeout** (`pkg/memory/embedding.go`): interfaz `EmbeddingProvider`
+  ahora acepta `context.Context`. Timeout de 5s en `VectorScores`. Previene
+  deadlock del store si el provider de embeddings cuelga.
+- **Dimension validation** (`pkg/memory/embedding.go`): `VectorScores` valida
+  que la dimension del query coincida con la del provider. Capsulas con
+  dimension incorrecta se saltan (degradation graceful).
+- **Stored dimension metadata** (`pkg/memory/capsule.go`): campo `EmbeddingDim`
+  en `Capsule` registra la dimension del provider al almacenar. Permite
+  diagnosticar incompatibilidad entre embeddings viejos y provider actual.
+
+### Cambiado
+
+- **EmbeddingProvider** (`pkg/memory/embedding.go`): interfaz cambia de
+  `Embed(text)` a `Embed(ctx, text)`. Breaking change justificado por
+  etapa temprana del proyecto (sin implementadores externos).
+- **BuildGraph** (`pkg/memory/graph.go`): tags compartidas ahora usan
+  indice invertido tag→keys en vez de loop de pares. O(N*T) en vez de O(N²).
+- **Consolidate Phase 3** (`pkg/memory/merge.go`): comparaciones Jaccard
+  limitadas a 500 por ejecucion. Previene bloqueo con colecciones grandes.
+- **matchQuery** (`pkg/memory/ranking.go`): `FullText()` se llama una vez
+  en vez de dos por capsula. Elimina duplicacion innecesaria.
+- **Goroutine safety** (`pkg/memory/embedding.go`): documentado que las
+  implementaciones de `EmbeddingProvider` deben ser seguras para uso
+  concurrente.
+
+### Infraestructura
+
+- **Orphaned tmp cleanup** (`pkg/memory/store.go`): `NewStore` elimina
+  archivos `.tmp-*` huérfanos de crashes anteriores.
+- **Lock file format**: de `<PID> <TS>` a `<PID> <TS> <UUID>`. Backward
+  compatible: locks viejos sin UUID se limpian automaticamente.
+
 ## [0.4.0] — 2026-08-21
 
 Fundaciones para crecimiento: embeddings para busqueda semantica y server
@@ -14,7 +66,8 @@ interfaces y stdlib.
 
 - **EmbeddingProvider interface** (`pkg/memory/embedding.go`): interfaz
   minima para proveedores de embeddings (OpenAI, Cohere, modelos locales).
-  `Embed(text) ([]float64, error)` + `Dimension() int`.
+  `Embed(ctx, text) ([]float64, error)` + `Dimension() int`. Soporte
+  para cancellation via context.Context.
 - **VectorScores**: funcion de similitud coseno que integra embeddings
   en el pipeline de ranking. Peso fijo 0.3 en combinacion lineal; con
   RRF se agrega como ranker adicional.
@@ -191,6 +244,7 @@ Versión inicial. Extraído del subsistema de memoria de
 - Al trabajar dentro del repo de Goulm (que usa `go.work`), compilar/testear
   este módulo requiere `$env:GOWORK="off"`.
 
+[0.4.1]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.1
 [0.4.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.0
 [0.3.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.3.0
 [0.2.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.2.0

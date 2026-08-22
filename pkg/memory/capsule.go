@@ -58,6 +58,7 @@ type Capsule struct {
 	Status       Status   `json:"status"`
 	SupersededOn string    `json:"superseded_on,omitempty"`
 	Embedding    []float64 `json:"embedding,omitempty"`
+	EmbeddingDim int       `json:"embedding_dim,omitempty"`
 }
 
 // keyRE valida claves kebab-case (sin colones: están reservados para typed links).

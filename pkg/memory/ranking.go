@@ -402,10 +402,11 @@ func vowelStart(s string) bool {
 // matchQuery indica si la cápsula matchea el query: match exacto de tokens
 // o fuzzy (Levenshtein ≤ 2) sobre tokens del documento.
 func matchQuery(c *Capsule, qTokens []string) bool {
-	text := strings.ToLower(c.FullText())
-	docTokens := tokenize(c.FullText())
+	text := c.FullText()
+	lower := strings.ToLower(text)
+	docTokens := tokenize(lower)
 	for _, qt := range qTokens {
-		if matchKeyword(text, qt) {
+		if matchKeyword(lower, qt) {
 			return true
 		}
 	}

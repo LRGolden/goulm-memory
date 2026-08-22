@@ -1,8 +1,11 @@
 package memory
 
 import (
+	cryptorand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"slices"
@@ -14,13 +17,36 @@ import (
 
 // Constantes de persistencia.
 const (
-	lockStaleAfter    = 15 * time.Second
-	lockWaitMax       = 10 * time.Second
-	defaultMaxEntries = 100
-	defaultMaxBackups = 10
+	lockStaleAfter     = 15 * time.Second
+	lockWaitMax        = 10 * time.Second
+	lockRefreshEvery   = 5 * time.Second // heartbeat: refrescar lock mientras se persiste
+	lockMaxClockSkew   = 5 * time.Second // tolerancia de reloj hacia el futuro
+	defaultMaxEntries  = 100
+	defaultMaxBackups  = 10
+	maxNearDupPairs    = 500 // limite de comparaciones Jaccard en Consolidate
 )
 
 func nowISO() string { return time.Now().UTC().Format(time.RFC3339) }
+
+// generateLockID genera un identificador unico para el lock (UUID v4).
+func generateLockID() string {
+	var buf [16]byte
+	cryptorand.Read(buf[:])
+	return hex.EncodeToString(buf[:])
+}
+
+// cleanupStaleTmp elimina archivos temporales huérfanos de crashes anteriores.
+func cleanupStaleTmp(dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".tmp-") {
+			os.Remove(filepath.Join(dir, e.Name()))
+		}
+	}
+}
 
 // jsonMarshalIndent serializa con indentación de 2 espacios.
 func jsonMarshalIndent(v interface{}) ([]byte, error) {
@@ -134,6 +160,7 @@ func NewStore(cfg Config) (*MemoryStore, error) {
 	if err := os.MkdirAll(cfg.Dir, 0700); err != nil {
 		return nil, fmt.Errorf("creando directorio de memoria: %w", err)
 	}
+	cleanupStaleTmp(cfg.Dir)
 	s := &MemoryStore{
 		cfg:      cfg,
 		files:    fileSet(cfg.Dir, cfg.Format),
@@ -242,13 +269,17 @@ func (s *MemoryStore) encode(capsules []*Capsule) []byte {
 // lockfile de proceso (multi-proceso) y tras adoptar cambios ajenos en disco.
 // El llamador debe mantener s.mu.
 func (s *MemoryStore) persistLocked() error {
-	release, err := lockFile(s.files.Lock)
+	release, lockID, err := lockFile(s.files.Lock)
 	if err != nil {
 		return err
 	}
 	defer release()
 
+	// Heartbeat: refrescar timestamp antes de operaciones largas para que
+	// otros procesos no reclamen el lock como stale mientras trabajamos.
+	refreshLock(s.files.Lock, lockID)
 	s.adoptForeignLocked()
+	refreshLock(s.files.Lock, lockID)
 	if err := s.writeLocked(); err != nil {
 		return err
 	}
@@ -367,8 +398,11 @@ func (s *MemoryStore) Flush() error {
 	if !s.dirty {
 		return nil
 	}
+	if err := s.persistLocked(); err != nil {
+		return err
+	}
 	s.dirty = false
-	return s.persistLocked()
+	return nil
 }
 
 // bumpGraph invalida la cache de grafo tras una mutación del almacén.
@@ -428,42 +462,59 @@ func atomicWrite(path string, data []byte, perm os.FileMode) error {
 	return os.Rename(tmpName, path)
 }
 
-// lockFile adquiere el lockfile de proceso (PID + antigüedad).
-// Devuelve una función de liberación. Busy-wait con timeout.
-func lockFile(lockPath string) (func(), error) {
+// lockFile adquiere el lockfile de proceso (PID + antigüedad + UUID).
+// Devuelve una función de liberación y el UUID del lock adquirido.
+// Busy-wait con timeout y jitter anti-thundering-herd.
+func lockFile(lockPath string) (func(), string, error) {
 	pid := os.Getpid()
+	myUUID := generateLockID()
 	deadline := time.Now().Add(lockWaitMax)
 	for {
-		acquired, err := tryLock(lockPath)
+		acquired, err := tryLock(lockPath, myUUID)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if acquired {
-			return func() {
+			release := func() {
 				// Liberar solo si el lock sigue siendo nuestro (TOCTOU-safe).
 				data, err := os.ReadFile(lockPath)
 				if err != nil {
 					return
 				}
 				fields := strings.Fields(string(data))
-				if len(fields) == 2 {
-					if p, err := strconv.Atoi(fields[0]); err == nil && p == pid {
+				if len(fields) == 3 {
+					if p, err := strconv.Atoi(fields[0]); err == nil && p == pid && fields[2] == myUUID {
 						os.Remove(lockPath)
 					}
 				}
-			}, nil
+			}
+			return release, myUUID, nil
 		}
 		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("timeout esperando el lock de memoria (%s)", lockPath)
+			return nil, "", fmt.Errorf("timeout esperando el lock de memoria (%s)", lockPath)
 		}
-		time.Sleep(100 * time.Millisecond)
+		// Jitter anti-thundering-herd: sleep 100-150ms aleatorio para que
+		// los procesos waiting no despierten todos al mismo tiempo.
+		jitter := time.Duration(rand.Intn(50)) * time.Millisecond
+		time.Sleep(100*time.Millisecond + jitter)
 	}
 }
 
-func tryLock(lockPath string) (bool, error) {
+// refreshLock actualiza el timestamp del lock file (heartbeat) para evitar
+// que otros procesos lo reclamen como stale mientras trabajamos.
+func refreshLock(lockPath, lockID string) {
+	content := fmt.Sprintf("%d %s %s",
+		os.Getpid(),
+		time.Now().UTC().Format(time.RFC3339),
+		lockID,
+	)
+	os.WriteFile(lockPath, []byte(content), 0600)
+}
+
+func tryLock(lockPath, lockID string) (bool, error) {
 	data, err := os.ReadFile(lockPath)
 	if os.IsNotExist(err) {
-		return writeLock(lockPath)
+		return writeLock(lockPath, lockID)
 	}
 	// En Windows, leer un lock que otro proceso está eliminando devuelve
 	// ERROR_SHARING_VIOLATION/ACCESS_DENIED: se trata como contención y se
@@ -475,25 +526,28 @@ func tryLock(lockPath string) (bool, error) {
 		return false, err
 	}
 	fields := strings.Fields(string(data))
-	if len(fields) != 2 {
+	// Aceptar tanto formato viejo (2 campos: PID TS) como nuevo (3 campos: PID TS UUID).
+	// Locks viejos sin UUID se tratan como stale para limpieza automática.
+	if len(fields) != 3 {
 		os.Remove(lockPath)
-		return writeLock(lockPath)
+		return writeLock(lockPath, lockID)
 	}
 	pid, err1 := strconv.Atoi(fields[0])
 	ts, err2 := time.Parse(time.RFC3339, fields[1])
 	if err1 != nil || err2 != nil {
 		os.Remove(lockPath)
-		return writeLock(lockPath)
+		return writeLock(lockPath, lockID)
 	}
-	// Stale: PID muerto o lock viejo.
-	if !pidAlive(pid) || time.Since(ts) > lockStaleAfter {
+	// Stale: PID muerto, lock viejo, o timestamp en el futuro (clock skew).
+	futureSkew := ts.After(time.Now().Add(lockMaxClockSkew))
+	if !pidAlive(pid) || time.Since(ts) > lockStaleAfter || futureSkew {
 		os.Remove(lockPath)
-		return writeLock(lockPath)
+		return writeLock(lockPath, lockID)
 	}
 	return false, nil
 }
 
-func writeLock(lockPath string) (bool, error) {
+func writeLock(lockPath, lockID string) (bool, error) {
 	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if os.IsExist(err) || isSharingViolation(err) {
 		return false, nil
@@ -501,7 +555,7 @@ func writeLock(lockPath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	content := fmt.Sprintf("%d %s", os.Getpid(), time.Now().UTC().Format(time.RFC3339))
+	content := fmt.Sprintf("%d %s %s", os.Getpid(), time.Now().UTC().Format(time.RFC3339), lockID)
 	if _, err := f.WriteString(content); err != nil {
 		f.Close()
 		return false, err
