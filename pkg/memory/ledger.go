@@ -441,6 +441,9 @@ func (l *Ledger) Export(since, to string) (string, error) {
 	}
 	var sb strings.Builder
 	for _, ev := range l.allEvents() {
+		if len(ev.TS) < 10 {
+			continue
+		}
 		if since != "" && ev.TS[:10] < since {
 			continue
 		}

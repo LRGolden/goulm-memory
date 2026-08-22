@@ -25,7 +25,7 @@ type HealthReport struct {
 
 // secretRE detecta patrones de secretos comunes (solo para avisar).
 // Nota: las claves Anthropic llevan guiones (sk-ant-api03-...).
-var secretRE = regexp.MustCompile(`(?i)\b(sk-[a-z0-9-]{20,}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{20,}|xox[baprs]-[a-zA-Z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|Bearer [a-zA-Z0-9._-]{20,})\b`)
+var secretRE = regexp.MustCompile(`(?i)\b(sk-[a-z0-9-]{20,}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{20,}|xox[baprs]-[a-zA-Z0-9-]{10,}|-----BEGIN [A-Z]{0,50}PRIVATE KEY-----|Bearer [a-zA-Z0-9._-]{20,})\b`)
 
 // Health audita el almacén: links huérfanos, duplicados exactos, TTL
 // expirados, referencias a archivos inexistentes, path_scope sin archivo,

@@ -364,6 +364,9 @@ func (s *MemoryStore) ImportCapsules(capsules []*Capsule) (int, error) {
 		if raw == nil || raw.Key == "" || !ValidCategory(raw.Category) {
 			continue
 		}
+		if strings.TrimSpace(raw.Content) == "" {
+			continue
+		}
 		in := raw.Clone()
 		// Validar/corregir estados y orígenes inválidos del import.
 		if !ValidStatus(in.Status) {
@@ -371,6 +374,15 @@ func (s *MemoryStore) ImportCapsules(capsules []*Capsule) (int, error) {
 		}
 		if !ValidOrigin(in.Origin) {
 			in.Origin = ""
+		}
+		// Dedupe por ID: si ya existe una capsula con el mismo ID, merge.
+		if existing, ok := s.entries[in.ID]; ok {
+			merged := MergeCapsules(existing, in)
+			merged.Quality = QualityScore(merged, now)
+			s.entries[merged.ID] = merged
+			s.byKeyIdx[merged.Key] = merged.ID
+			changed = true
+			continue
 		}
 		if existing, ok := s.byKey(in.Key); ok {
 			merged := MergeCapsules(existing, in)

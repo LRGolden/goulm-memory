@@ -23,7 +23,10 @@ const (
 	lockMaxClockSkew   = 5 * time.Second // tolerancia de reloj hacia el futuro
 	defaultMaxEntries  = 100
 	defaultMaxBackups  = 10
-	maxNearDupPairs    = 500 // limite de comparaciones Jaccard en Consolidate
+	maxNearDupPairs    = 500  // limite de comparaciones Jaccard en Consolidate
+	maxMaxEntries      = 10000 // cap duro para MaxEntries
+	maxMaxBackups      = 100   // cap duro para MaxBackups
+	maxArchiveEntries  = 500   // limite de capsulas en archive
 )
 
 func nowISO() string { return time.Now().UTC().Format(time.RFC3339) }
@@ -60,6 +63,7 @@ type Config struct {
 	Project    string // nombre declarado en los archivos
 	MaxEntries int    // límite de cápsulas activas (default 100)
 	MaxBackups int    // backups a conservar (default 10)
+	MaxArchive int    // límite de cápsulas en archive (default 500)
 }
 
 // FileSet describe los archivos del almacén para el formato actual.
@@ -93,6 +97,8 @@ type storeConfig struct {
 	Format     Format              `json:"format"`
 	Project    string              `json:"project"`
 	MaxEntries int                 `json:"max_entries"`
+	MaxBackups int                 `json:"max_backups,omitempty"`
+	MaxArchive int                 `json:"max_archive,omitempty"`
 	Vocab      map[string][]string `json:"vocab,omitempty"`
 }
 
@@ -154,8 +160,20 @@ func NewStore(cfg Config) (*MemoryStore, error) {
 	if cfg.MaxEntries <= 0 {
 		cfg.MaxEntries = defaultMaxEntries
 	}
+	if cfg.MaxEntries > maxMaxEntries {
+		cfg.MaxEntries = maxMaxEntries
+	}
 	if cfg.MaxBackups <= 0 {
 		cfg.MaxBackups = defaultMaxBackups
+	}
+	if cfg.MaxBackups > maxMaxBackups {
+		cfg.MaxBackups = maxMaxBackups
+	}
+	if cfg.MaxArchive <= 0 {
+		cfg.MaxArchive = maxArchiveEntries
+	}
+	if cfg.MaxArchive > maxArchiveEntries {
+		cfg.MaxArchive = maxArchiveEntries
 	}
 	if err := os.MkdirAll(cfg.Dir, 0700); err != nil {
 		return nil, fmt.Errorf("creando directorio de memoria: %w", err)
@@ -204,8 +222,14 @@ func (s *MemoryStore) loadMeta() error {
 	if sc.Project != "" {
 		s.cfg.Project = sc.Project
 	}
-	if sc.MaxEntries > 0 {
+	if sc.MaxEntries > 0 && sc.MaxEntries <= maxMaxEntries {
 		s.cfg.MaxEntries = sc.MaxEntries
+	}
+	if sc.MaxBackups > 0 && sc.MaxBackups <= maxMaxBackups {
+		s.cfg.MaxBackups = sc.MaxBackups
+	}
+	if sc.MaxArchive > 0 && sc.MaxArchive <= maxArchiveEntries {
+		s.cfg.MaxArchive = sc.MaxArchive
 	}
 	s.vocab = sc.Vocab
 	if s.vocab == nil {
@@ -215,12 +239,24 @@ func (s *MemoryStore) loadMeta() error {
 	return nil
 }
 
-// load lee memory + archive desde disco.
+// load lee memory + archive desde disco. Si un archivo está corrupto,
+// lo renombra como backup y continúa con estado vacío (recovery mode).
 func (s *MemoryStore) load() error {
 	if err := s.loadFile(s.files.Memory, s.entries, true); err != nil {
-		return err
+		s.backupCorruptFile(s.files.Memory)
 	}
-	return s.loadFile(s.files.Archive, s.archive, false)
+	if err := s.loadFile(s.files.Archive, s.archive, false); err != nil {
+		s.backupCorruptFile(s.files.Archive)
+	}
+	return nil
+}
+
+// backupCorruptFile renombra un archivo corrupto como .corrupt.<timestamp>
+// para permitir que el store se abra con estado parcial.
+func (s *MemoryStore) backupCorruptFile(path string) {
+	ts := time.Now().Format("20060102-150405")
+	backup := path + ".corrupt." + ts
+	os.Rename(path, backup)
 }
 
 func (s *MemoryStore) loadFile(path string, target map[string]*Capsule, indexKeys bool) error {

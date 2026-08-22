@@ -405,6 +405,11 @@ func matchQuery(c *Capsule, qTokens []string) bool {
 	text := c.FullText()
 	lower := strings.ToLower(text)
 	docTokens := tokenize(lower)
+	// Limitar a 50 tokens para Levenshtein: contenido largo se trunca
+	// para evitar O(N²) en fuzzy match.
+	if len(docTokens) > 50 {
+		docTokens = docTokens[:50]
+	}
 	for _, qt := range qTokens {
 		if matchKeyword(lower, qt) {
 			return true

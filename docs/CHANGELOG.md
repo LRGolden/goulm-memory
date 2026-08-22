@@ -4,6 +4,51 @@ Historial de cambios de `goulm-memory`. Formato
 [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); el módulo sigue
 [SemVer](https://semver.org/).
 
+## [0.4.2] — 2026-08-22
+
+Hardening de seguridad, validacion de inputs y recovery mode para archivos
+corruptos. Revision granular de 26 puntos de compatibilidad, seguridad,
+resiliencia, confiabilidad, robustez y escalabilidad.
+
+### Corregido
+
+- **HTTP body limit** (`cmd/serve/main.go`): `io.LimitReader` de 1 MB max.
+  Previene DoS por request body gigante.
+- **CORS localhost** (`cmd/serve/main.go`): default `http://localhost:*`
+  en vez de `*`. Flag `-cors` para configurar origen.
+- **Content max length** (`pkg/memory/capsule.go`): 100 KB max en Content,
+  10 tags max, 64 chars por tag, 128 chars por key. Previene memory DoS.
+- **MaxEntries/MaxBackups cap** (`pkg/memory/store.go`): caps de 10000 y
+  100 respectivamente. Previene config maliciosa.
+- **Corrupt file recovery** (`pkg/memory/store.go`): archivos corruptos
+  (memory.json, archive.json) se renombran como `.corrupt.<timestamp>` y
+  el store se abre con estado vacio. Antes, un byte corrupto bloqueaba
+  todo el store.
+- **Import content validation** (`pkg/memory/memory.go`): `ImportCapsules`
+  rechaza capsulas con contenido vacio.
+- **Import duplicate ID dedupe** (`pkg/memory/memory.go`): capsulas con
+  mismo ID en import se fusionan en vez de causar phantom keys.
+- **Levenshtein bound** (`pkg/memory/ranking.go`): fuzzy match limitado
+  a 50 doc tokens por capsula. Previene O(N²) con contenido largo.
+- **Export timestamp check** (`pkg/memory/ledger.go`): guard antes de
+  `ev.TS[:10]` para prevenir panic con timestamps malformados.
+- **secretRE bound** (`pkg/memory/health.go`): `[A-Z ]*` reemplazado
+  por `[A-Z]{0,50}`. Previene ReDoS teorico.
+- **MaxArchive** (`pkg/memory/store.go`, `pkg/memory/merge.go`): archive
+  limitado a 500 capsulas por defecto. Consolidate hace prune automatico
+  por calidad.
+
+### Documentado
+
+- **Path traversal warning** (`docs/ADVANCED.md`): campos `File` y
+  `PathScope` se almacenan sin sanitizar. Consumidor es responsable.
+- **Un store por directorio** (`docs/ADVANCED.md`): dos stores en el
+  mismo directorio causan contention de lockfile.
+- **Flush volatile metadata** (`docs/ADVANCED.md`): access bumps se
+  pierden si Flush no se llama antes de terminar.
+- **TTL expiration behavior** (`docs/ADVANCED.md`): capsulas expiradas
+  no aparecen en Recall pero siguen en el store.
+
 ## [0.4.1] — 2026-08-22
 
 Correcciones de robustez para produccion: file locking multi-plataforma,
@@ -244,6 +289,7 @@ Versión inicial. Extraído del subsistema de memoria de
 - Al trabajar dentro del repo de Goulm (que usa `go.work`), compilar/testear
   este módulo requiere `$env:GOWORK="off"`.
 
+[0.4.2]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.2
 [0.4.1]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.1
 [0.4.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.0
 [0.3.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.3.0

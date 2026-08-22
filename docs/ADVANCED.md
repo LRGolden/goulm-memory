@@ -236,6 +236,36 @@ ranked, _ := store.Recall("query", &memory.Query{Limit: 5})
 Ver [SERVER.md](SERVER.md) para el server HTTP que expone el store via
 endpoints JSON, util para clientes Python, TypeScript y otros lenguajes.
 
+## Notas de comportamiento
+
+### Flush y metadata volatile
+
+Los bumps de acceso (`Accessed`, `LastAccessed`) se marcan en memoria pero
+solo se persisten cuando `Flush()` es llamado. Si el proceso termina sin
+llamar `Flush`, estos cambios se pierden. Esto es intencional: el recall
+nunca falla por errores de disco.
+
+Para garantizar persistencia, llamar `Flush()` al final del turno o usar
+`defer store.Flush()`.
+
+### Un store por directorio por proceso
+
+No crear dos `MemoryStore` apuntando al mismo directorio dentro de un
+mismo proceso. Cada store tiene su propio mutex; dos stores = dos mutexes
+independientes que contendran por el lockfile (timeout a 10s).
+
+### TTL y expiracion
+
+Las capsulas con TTL expirado no aparecen en `Recall` pero siguen en el
+store. `Consolidate` no las elimina. Para limpiar, usar `Forget` manual
+o configurar un TTL generoso.
+
+### Campos sanitizados
+
+Los campos `File` y `PathScope` se almacenan tal cual. El consumidor es
+responsable de validarlos si los usa para abrir archivos. No confiar en
+estos campos como rutas seguras.
+
 ## Mas informacion
 
 - [API.md](API.md) — Referencia completa de todos los tipos y funciones

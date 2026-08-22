@@ -205,6 +205,21 @@ func (s *MemoryStore) Consolidate() (ConsolidateReport, error) {
 	}
 	s.rebuildByKeyLocked()
 	s.bumpGraph()
+	// Prune archive si excede MaxArchive.
+	if len(s.archive) > s.cfg.MaxArchive {
+		archived := make([]*Capsule, 0, len(s.archive))
+		for _, c := range s.archive {
+			archived = append(archived, c)
+		}
+		sort.SliceStable(archived, func(i, j int) bool {
+			return archived[i].Quality < archived[j].Quality
+		})
+		pruned := archived[:s.cfg.MaxArchive]
+		s.archive = make(map[string]*Capsule, len(pruned))
+		for _, c := range pruned {
+			s.archive[c.ID] = c
+		}
+	}
 	rep.After = len(s.entries)
 	if err := s.persistLocked(); err != nil {
 		return rep, err

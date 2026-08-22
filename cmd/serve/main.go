@@ -44,6 +44,7 @@ import (
 func main() {
 	addr := flag.String("addr", ":8080", "direccion del servidor (host:port)")
 	dir := flag.String("dir", "", "directorio de memoria (default ~/.goulm-memory/<proyecto>)")
+	corsOrigin := flag.String("cors", "http://localhost:*", "origen CORS permitido (* para todos)")
 	flag.Parse()
 
 	cwd, err := os.Getwd()
@@ -102,7 +103,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         *addr,
-		Handler:      corsMiddleware(mux),
+		Handler:      corsMiddleware(mux, *corsOrigin),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
@@ -129,7 +130,7 @@ func toolHandler(reg *tools.Registry, toolName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		body, err := io.ReadAll(r.Body)
+		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // max 1 MB
 		if err != nil {
 			http.Error(w, `{"error":"error leyendo body"}`, http.StatusBadRequest)
 			return
@@ -174,9 +175,9 @@ func toolHandler(reg *tools.Registry, toolName string) http.HandlerFunc {
 }
 
 // corsMiddleware agrega headers CORS basicos.
-func corsMiddleware(next http.Handler) http.Handler {
+func corsMiddleware(next http.Handler, origin string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {

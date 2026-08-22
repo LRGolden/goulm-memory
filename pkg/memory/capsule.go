@@ -61,6 +61,14 @@ type Capsule struct {
 	EmbeddingDim int       `json:"embedding_dim,omitempty"`
 }
 
+// Constantes de validación.
+const (
+	maxKeyLen    = 128
+	maxContentLen = 100 * 1024 // 100 KB
+	maxTags      = 10
+	maxTagLen    = 64
+)
+
 // keyRE valida claves kebab-case (sin colones: están reservados para typed links).
 var keyRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
@@ -69,11 +77,17 @@ func NewCapsule(cat Category, key, content string) (*Capsule, error) {
 	if !ValidCategory(cat) {
 		return nil, fmt.Errorf("categoría inválida: %q (usa decision, pattern, bug o knowledge)", cat)
 	}
+	if len(key) > maxKeyLen {
+		return nil, fmt.Errorf("clave demasiado larga: %d > %d", len(key), maxKeyLen)
+	}
 	if !keyRE.MatchString(key) {
 		return nil, fmt.Errorf("clave inválida: %q (kebab-case, solo a-z0-9-)", key)
 	}
 	if strings.TrimSpace(content) == "" {
 		return nil, fmt.Errorf("el contenido no puede estar vacío")
+	}
+	if len(content) > maxContentLen {
+		return nil, fmt.Errorf("contenido demasiado largo: %d > %d bytes", len(content), maxContentLen)
 	}
 	return &Capsule{
 		ID:         NewID(),
@@ -85,6 +99,19 @@ func NewCapsule(cat Category, key, content string) (*Capsule, error) {
 		Origin:     OriginAgent,
 		Status:     StatusActive,
 	}, nil
+}
+
+// ValidateTags valida que los tags cumplan restricciones de formato y cantidad.
+func ValidateTags(tags []string) error {
+	if len(tags) > maxTags {
+		return fmt.Errorf("demasiados tags: %d > %d", len(tags), maxTags)
+	}
+	for _, t := range tags {
+		if len(t) > maxTagLen {
+			return fmt.Errorf("tag demasiado largo: %q (%d > %d)", t, len(t), maxTagLen)
+		}
+	}
+	return nil
 }
 
 // ValidCategory comprueba que la categoría sea una de las 4 canónicas.
