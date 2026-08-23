@@ -44,6 +44,9 @@ Thumbs.db
 # Standards privados (no se suben)
 .standards/
 
+# Scripts privados (no se suben)
+scripts/
+
 # Temporales
 tmp/
 *.tmp

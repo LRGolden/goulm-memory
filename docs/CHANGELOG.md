@@ -4,6 +4,26 @@ Historial de cambios de `goulm-memory`. Formato
 [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); el módulo sigue
 [SemVer](https://semver.org/).
 
+## [0.4.3] — 2026-08-23
+
+Autenticacion HTTP y benchmarks de performance.
+
+### Agregado
+
+- **HTTP API Key auth** (`cmd/serve/main.go`): flag `-api-key` y env var
+  `GOULM_API_KEY`. Header `X-API-Key` o `Authorization: Bearer <key>`.
+  Comparacion timing-attack safe con `crypto/subtle`. `/healthz` sin auth.
+  Backward compatible: sin key = sin auth.
+- **Benchmarks** (`pkg/memory/benchmark_*_test.go`): 7 archivos de
+  benchmark cubriendo Remember, Recall, SmartRecall, Forget, BM25Scores,
+  VectorScores, BuildGraph, Centrality, concurrent writes, concurrent
+  reads, y mixed workload. Tests con N=10, 100, 500, 1000.
+
+### Documentado
+
+- **SERVER.md**: documentacion de `-api-key`, `GOULM_API_KEY`, headers
+  de autenticacion, y ejemplos actualizados (curl, Python, TypeScript).
+
 ## [0.4.2] — 2026-08-22
 
 Hardening de seguridad, validacion de inputs y recovery mode para archivos
@@ -289,6 +309,7 @@ Versión inicial. Extraído del subsistema de memoria de
 - Al trabajar dentro del repo de Goulm (que usa `go.work`), compilar/testear
   este módulo requiere `$env:GOWORK="off"`.
 
+[0.4.3]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.3
 [0.4.2]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.2
 [0.4.1]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.1
 [0.4.0]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.0

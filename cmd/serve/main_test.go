@@ -103,3 +103,97 @@ func TestToolHandlerNotFound(t *testing.T) {
 		t.Errorf("not found = %d, want %d", w.Code, http.StatusNotFound)
 	}
 }
+
+func TestAuthMiddlewareNoKey(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"ok":true}`))
+	})
+
+	// Sin API key configurada = auth deshabilitada.
+	handler := authMiddleware(inner, "")
+	req := httptest.NewRequest("GET", "/api/v1/stats", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("no auth config = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestAuthMiddlewareMissingHeader(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"ok":true}`))
+	})
+
+	handler := authMiddleware(inner, "secret-key")
+	req := httptest.NewRequest("GET", "/api/v1/stats", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("missing header = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestAuthMiddlewareWrongKey(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"ok":true}`))
+	})
+
+	handler := authMiddleware(inner, "secret-key")
+	req := httptest.NewRequest("GET", "/api/v1/stats", nil)
+	req.Header.Set("X-API-Key", "wrong-key")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("wrong key = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestAuthMiddlewareCorrectKey(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"ok":true}`))
+	})
+
+	handler := authMiddleware(inner, "secret-key")
+	req := httptest.NewRequest("GET", "/api/v1/stats", nil)
+	req.Header.Set("X-API-Key", "secret-key")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("correct key = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestAuthMiddlewareBearerToken(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"ok":true}`))
+	})
+
+	handler := authMiddleware(inner, "secret-key")
+	req := httptest.NewRequest("GET", "/api/v1/stats", nil)
+	req.Header.Set("Authorization", "Bearer secret-key")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("bearer token = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestAuthMiddlewareHealthzBypass(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"status":"ok"}`))
+	})
+
+	handler := authMiddleware(inner, "secret-key")
+	req := httptest.NewRequest("GET", "/healthz", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("healthz bypass = %d, want %d", w.Code, http.StatusOK)
+	}
+}

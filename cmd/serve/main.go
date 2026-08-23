@@ -25,6 +25,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -34,6 +35,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -45,7 +47,13 @@ func main() {
 	addr := flag.String("addr", ":8080", "direccion del servidor (host:port)")
 	dir := flag.String("dir", "", "directorio de memoria (default ~/.goulm-memory/<proyecto>)")
 	corsOrigin := flag.String("cors", "http://localhost:*", "origen CORS permitido (* para todos)")
+	apiKey := flag.String("api-key", "", "API key para autenticacion (default: sin auth). Tambien: GOULM_API_KEY")
 	flag.Parse()
+
+	// Env var como fallback para -api-key.
+	if *apiKey == "" {
+		*apiKey = os.Getenv("GOULM_API_KEY")
+	}
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -103,7 +111,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         *addr,
-		Handler:      corsMiddleware(mux, *corsOrigin),
+		Handler:      authMiddleware(corsMiddleware(mux, *corsOrigin), *apiKey),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
@@ -119,7 +127,11 @@ func main() {
 		srv.Shutdown(ctx)
 	}()
 
-	log.Printf("goulm-memory server en %s (dir: %s)", *addr, memDir)
+	authInfo := "sin auth"
+	if *apiKey != "" {
+		authInfo = "con auth"
+	}
+	log.Printf("goulm-memory server en %s (dir: %s, %s)", *addr, memDir, authInfo)
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
@@ -179,11 +191,48 @@ func corsMiddleware(next http.Handler, origin string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// authMiddleware valida API key via header X-API-Key o Authorization: Bearer <key>.
+// Si apiKey esta vacio, la auth esta deshabilitada (backward compatible).
+// /healthz siempre pasa sin auth.
+func authMiddleware(next http.Handler, apiKey string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Liveness check sin auth.
+		if r.URL.Path == "/healthz" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Sin key configurada = auth deshabilitada.
+		if apiKey == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Extraer key del request.
+		var provided string
+		if h := r.Header.Get("X-API-Key"); h != "" {
+			provided = h
+		} else if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
+			provided = h[7:]
+		}
+
+		// Comparacion timing-attack safe.
+		if subtle.ConstantTimeCompare([]byte(provided), []byte(apiKey)) != 1 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprint(w, `{"error":"api key requerida"}`)
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
