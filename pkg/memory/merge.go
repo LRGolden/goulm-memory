@@ -214,7 +214,7 @@ func (s *MemoryStore) Consolidate() (ConsolidateReport, error) {
 		sort.SliceStable(archived, func(i, j int) bool {
 			return archived[i].Quality < archived[j].Quality
 		})
-		pruned := archived[:s.cfg.MaxArchive]
+		pruned := archived[len(archived)-s.cfg.MaxArchive:]
 		s.archive = make(map[string]*Capsule, len(pruned))
 		for _, c := range pruned {
 			s.archive[c.ID] = c

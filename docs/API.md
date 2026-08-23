@@ -268,14 +268,13 @@ func (g *Graph) ShortestPath(a, b string) []string
 func (s *MemoryStore) Sessions(agent string) (*SessionTracker, error)
 
 type ActiveSession struct {
-    ID        string
-    Agent     string
-    Branch    string
-    StartedAt string
-    LastSeen  time.Time
-    Files     []string
-    IsSelf    bool
-    Ended     bool
+    ID       string
+    Agent    string
+    Branch   string
+    IsSelf   bool
+    LastSeen time.Time
+    Files    []string
+    Conflict bool
 }
 
 type FileConflict struct {

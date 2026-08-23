@@ -61,8 +61,8 @@ Toda la memoria son **cápsulas** (`Capsule`), con campos:
 | `Status` | `active`, `obsolete`. |
 | `SupersededOn` | Fecha en que fue superada (soft-delete). |
 
-**Origen → confianza** (`ConfidenceFor`): `human` = 0.95, `agent` = 0.75,
-`inferred` = 0.5.
+**Origen → confianza** (`ConfidenceFor`): `human` = 1.0, `agent` = 0.8,
+`inferred` = 0.6.
 
 **Ciclo de vida**:
 
