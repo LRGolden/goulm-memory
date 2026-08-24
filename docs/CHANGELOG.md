@@ -4,6 +4,35 @@ Historial de cambios de `goulm-memory`. Formato
 [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); el módulo sigue
 [SemVer](https://semver.org/).
 
+## [0.4.4] — 2026-08-23
+
+Optimizacion de memoria y performance en el pipeline de Recall.
+
+### Mejorado
+
+- **FullText cache** (`pkg/memory/capsule.go`): `FullText()` ahora cachea
+  el resultado. Previene reconstruccion redundante en matchQuery y
+  BM25Scores (~5000 allocs menos por Recall con N=1000).
+- **Tokens pre-computed** (`pkg/memory/capsule.go`, `memory.go`):
+  Campo `Tokens []string` en Capsule, computado durante Remember.
+  BM25Scores reutiliza tokens existentes en vez de tokenizar de nuevo
+  (~3000 allocs menos).
+- **BM25 token limit** (`pkg/memory/ranking.go`): BM25Scores ahora
+  trunca a 50 tokens por capsula (consistente con matchQuery).
+- **matchTags pool** (`pkg/memory/ranking.go`): sync.Pool para el map
+  de tags en matchTags. Reusa memoria entre llamadas (~1000 allocs menos).
+- **RRF rankers** (`pkg/memory/ranking.go`): Slice de rankers movido
+  fuera del scoring loop. Se construye una vez, no por capsula (~1000
+  allocs menos).
+- **Ambar format** (`pkg/memory/ambar.go`): Serializa/deserializa
+  campo `tokens>` para pre-computed tokens.
+
+### Cambio
+
+- **Capsule.Clone()**: Copia campo `Tokens` y cache `fullText`.
+- **MergeCapsules**: Recalcula tokens cuando Content cambia.
+- **ImportCapsules**: Computa tokens si no existen en la capsula importada.
+
 ## [0.4.3] — 2026-08-23
 
 Autenticacion HTTP y benchmarks de performance.
@@ -309,6 +338,7 @@ Versión inicial. Extraído del subsistema de memoria de
 - Al trabajar dentro del repo de Goulm (que usa `go.work`), compilar/testear
   este módulo requiere `$env:GOWORK="off"`.
 
+[0.4.4]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.4
 [0.4.3]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.3
 [0.4.2]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.2
 [0.4.1]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.1

@@ -56,9 +56,13 @@ type Capsule struct {
 	PathScope    string   `json:"path_scope,omitempty"`
 	Origin       Origin   `json:"origin"`
 	Status       Status   `json:"status"`
-	SupersededOn string    `json:"superseded_on,omitempty"`
+	SupersededOn string   `json:"superseded_on,omitempty"`
 	Embedding    []float64 `json:"embedding,omitempty"`
 	EmbeddingDim int       `json:"embedding_dim,omitempty"`
+	Tokens       []string  `json:"tokens,omitempty"` // pre-computed para BM25
+
+	// Cache lazy (no serializado).
+	fullText string
 }
 
 // Constantes de validación.
@@ -190,11 +194,22 @@ func (c *Capsule) IsVisible(now time.Time, asOf string) bool {
 }
 
 // FullText devuelve el texto completo sobre el que se hace match y BM25.
+// Resultado cacheado: la primera llamada computa, las siguientes reutilizan.
 func (c *Capsule) FullText() string {
-	return strings.Join([]string{
+	if c.fullText != "" {
+		return c.fullText
+	}
+	c.fullText = strings.Join([]string{
 		c.ID, string(c.Category), c.Key, c.Content, c.File,
 		strings.Join(c.Tags, " "), c.PathScope,
 	}, " ")
+	return c.fullText
+}
+
+// InvalidateFullText limpia el cache de FullText para que se recompute
+// en la proxima llamada. Usar cuando cambie Content, Tags, File o PathScope.
+func (c *Capsule) InvalidateFullText() {
+	c.fullText = ""
 }
 
 // BumpAccess registra un acceso y devuelve true si cambió algo.
@@ -244,5 +259,22 @@ func (c *Capsule) Clone() *Capsule {
 	out.Tags = append([]string(nil), c.Tags...)
 	out.Links = append([]string(nil), c.Links...)
 	out.Embedding = append([]float64(nil), c.Embedding...)
+	out.Tokens = append([]string(nil), c.Tokens...)
+	out.fullText = c.fullText // string, se copia por valor
 	return &out
+}
+
+// maxBM25Tokens es el limite de tokens por capsula para BM25.
+// Previene O(N²) con contenido largo.
+const maxBM25Tokens = 50
+
+// computeTokens tokeniza el texto completo de una capsula y devuelve
+// los tokens pre-computed (limitados a maxBM25Tokens).
+func computeTokens(c *Capsule) []string {
+	text := strings.ToLower(c.FullText())
+	tokens := tokenize(text)
+	if len(tokens) > maxBM25Tokens {
+		tokens = tokens[:maxBM25Tokens]
+	}
+	return tokens
 }

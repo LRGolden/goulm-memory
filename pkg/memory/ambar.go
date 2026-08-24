@@ -66,6 +66,9 @@ func MarshalAmbar(project string, capsules []*Capsule) string {
 			}
 			sb.WriteString("embedding>" + strings.Join(parts, ",") + "\n")
 		}
+		if len(c.Tokens) > 0 {
+			sb.WriteString("tokens>" + ambarEscapes.Replace(strings.Join(c.Tokens, ";")) + "\n")
+		}
 	}
 	return sb.String()
 }
@@ -117,6 +120,10 @@ func UnmarshalAmbar(data string) (project string, capsules []*Capsule, err error
 	var cur *Capsule
 	flush := func() {
 		if cur != nil && cur.ID != "" && cur.Key != "" {
+			// Pre-computar tokens si no existen.
+			if len(cur.Tokens) == 0 {
+				cur.Tokens = computeTokens(cur)
+			}
 			capsules = append(capsules, cur)
 		}
 		cur = nil
@@ -181,6 +188,13 @@ func UnmarshalAmbar(data string) (project string, capsules []*Capsule, err error
 				if len(emb) > 0 {
 					cur.Embedding = emb
 				}
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "tokens>") {
+			raw := strings.TrimPrefix(line, "tokens>")
+			if raw != "" {
+				cur.Tokens = splitAmbarList(ambarUnescapes.Replace(raw))
 			}
 			continue
 		}

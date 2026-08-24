@@ -16,6 +16,8 @@ func MergeCapsules(existing, incoming *Capsule) *Capsule {
 	out := existing.Clone()
 	if len([]rune(incoming.Content)) > len([]rune(out.Content)) {
 		out.Content = incoming.Content
+		out.InvalidateFullText()
+		out.Tokens = computeTokens(out)
 	}
 	out.Tags = unionStrings(existing.Tags, incoming.Tags)
 	out.Links = unionStrings(existing.Links, incoming.Links)

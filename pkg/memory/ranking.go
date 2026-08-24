@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 )
@@ -142,6 +143,15 @@ func (s *MemoryStore) Rank(opts RankOptions) ([]Ranked, error) {
 		seed bool
 		d    int
 	}
+	// Pre-construir rankers para RRF (reusar en el loop).
+	var rankers []map[string]float64
+	if opts.RRF {
+		rankers = make([]map[string]float64, 0, 5)
+		rankers = append(rankers, bm25, bm25, bm25, centrality)
+		if vecScores != nil {
+			rankers = append(rankers, vecScores)
+		}
+	}
 	candidates := make([]scored, 0, len(visible))
 	for _, c := range allVisible {
 		d, inDist := dist[c.Key]
@@ -150,11 +160,6 @@ func (s *MemoryStore) Rank(opts RankOptions) ([]Ranked, error) {
 		}
 		var sc float64
 		if opts.RRF {
-			// Fusión de rangos: BM25 (x3) + centralidad (x1) + vector (x1 si disponible).
-			rankers := []map[string]float64{bm25, bm25, bm25, centrality}
-			if vecScores != nil {
-				rankers = append(rankers, vecScores)
-			}
 			sc = rrfScore(rankers, c.Key, len(allVisible))
 		} else {
 			sc = bm25[c.Key] +
@@ -264,11 +269,27 @@ func keysOf(m map[string]bool) []string {
 	return out
 }
 
+// matchTags indica si la cápsula tiene todos los tags del filtro.
+// Usa sync.Pool para reusar el map entre llamadas.
+var tagPool = sync.Pool{
+	New: func() interface{} {
+		m := make(map[string]bool, 16)
+		return &m
+	},
+}
+
 func matchTags(capsuleTags, filter []string) bool {
 	if len(filter) == 0 {
 		return true
 	}
-	set := make(map[string]bool, len(capsuleTags))
+	setp := tagPool.Get().(*map[string]bool)
+	set := *setp
+	// Limpiar map reusado.
+	for k := range set {
+		delete(set, k)
+	}
+	defer tagPool.Put(setp)
+
 	for _, t := range capsuleTags {
 		set[strings.ToLower(t)] = true
 	}
@@ -490,7 +511,14 @@ func BM25Scores(query string, docs []*Capsule) map[string]float64 {
 	var avgdl float64
 	for _, c := range docs {
 		text := strings.ToLower(c.FullText())
-		tokens := tokenize(text)
+		// Usar tokens pre-computed si existen, fallback a tokenizar.
+		tokens := c.Tokens
+		if len(tokens) == 0 {
+			tokens = tokenize(text)
+			if len(tokens) > maxBM25Tokens {
+				tokens = tokens[:maxBM25Tokens]
+			}
+		}
 		tf := make(map[string]int)
 		for _, t := range tokens {
 			tf[t]++

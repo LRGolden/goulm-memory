@@ -83,6 +83,9 @@ func (s *MemoryStore) Remember(o RememberOptions) (RememberResult, error) {
 		caps.Quality = QualityScore(caps, now)
 	}
 
+	// Pre-computar tokens para BM25.
+	caps.Tokens = computeTokens(caps)
+
 	// Merge-dedup por clave.
 	if existing, ok := s.byKey(caps.Key); ok {
 		merged := MergeCapsules(existing, caps)
@@ -368,6 +371,10 @@ func (s *MemoryStore) ImportCapsules(capsules []*Capsule) (int, error) {
 			continue
 		}
 		in := raw.Clone()
+		// Pre-computar tokens para BM25 si no existen.
+		if len(in.Tokens) == 0 {
+			in.Tokens = computeTokens(in)
+		}
 		// Validar/corregir estados y orígenes inválidos del import.
 		if !ValidStatus(in.Status) {
 			in.Status = ""
