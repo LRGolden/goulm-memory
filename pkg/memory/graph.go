@@ -60,6 +60,9 @@ func BuildGraph(capsules []*Capsule) *Graph {
 
 	// Tags compartidas: si dos cápsulas comparten ≥2 tags → edge sintético.
 	// Implementación O(N*T) con índice invertido tag→keys en vez de O(N²).
+	// Umbral: tags que aparecen en >maxTagCapsules cápsulas se ignoran
+	// porque son genéricos ("important", "todo") y no crean edges útiles.
+	const maxTagCapsules = 50
 	tagIndex := make(map[string][]string)
 	for _, c := range capsules {
 		if c == nil || c.Key == "" {
@@ -69,11 +72,9 @@ func BuildGraph(capsules []*Capsule) *Graph {
 			tagIndex[tag] = append(tagIndex[tag], c.Key)
 		}
 	}
-	// Para cada tag, incrementar contador de co-ocurrencia por par de keys.
-	// Si un par alcanza ≥2, crear edge.
 	sharedCount := make(map[[2]string]int)
 	for _, keys := range tagIndex {
-		if len(keys) < 2 {
+		if len(keys) < 2 || len(keys) > maxTagCapsules {
 			continue
 		}
 		for i := 0; i < len(keys); i++ {

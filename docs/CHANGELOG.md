@@ -4,6 +4,33 @@ Historial de cambios de `goulm-memory`. Formato
 [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); el módulo sigue
 [SemVer](https://semver.org/).
 
+## [0.4.6] — 2026-08-25
+
+Fix critico de memoria en Recall + VP-Tree para vector search.
+
+### Corregido
+
+- **BuildGraph O(N²) fix** (`pkg/memory/graph.go`): tags que aparecen
+  en >50 cápsulas ya no crean edges sintéticos. Reduce Recall N=1000
+  de ~214MB a ~30MB. Links explícitos y refs [[clave]] no se afectan.
+
+### Agregado
+
+- **VP-Tree** (`pkg/memory/vptree.go`): árbol VP para búsqueda de
+  nearest neighbors aproximada. Reemplaza brute-force para N>1000.
+  Build O(N×log N), query O(log N×D), memoria O(N).
+- **vectorScoresVP** (`pkg/memory/embedding.go`): integración del
+  VP-Tree en el pipeline de Ranking. Fallback automático a brute-force
+  si el tree no está disponible.
+- **vpTreeFor** (`pkg/memory/store.go`): cache lazy del VP-Tree,
+  reconstruido cuando el store muta.
+- **VECTOR_SEARCH.md** (`docs/VECTOR_SEARCH.md`): documentación de
+  métodos de busqueda vectorial evaluados.
+- **benchmark_recall_profile_test.go**: benchmark con memprofile
+  para diagnóstico de allocs.
+- **graph_test.go**: tests de regresión para grafo con muchas cápsulas.
+- **vptree_test.go**: tests unitarios del VP-Tree.
+
 ## [0.4.5] — 2026-08-24
 
 Optimizacion profunda de Recall: levenshtein con buffers reusables y
@@ -351,6 +378,7 @@ Versión inicial. Extraído del subsistema de memoria de
 - Al trabajar dentro del repo de Goulm (que usa `go.work`), compilar/testear
   este módulo requiere `$env:GOWORK="off"`.
 
+[0.4.6]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.6
 [0.4.5]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.5
 [0.4.4]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.4
 [0.4.3]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.3

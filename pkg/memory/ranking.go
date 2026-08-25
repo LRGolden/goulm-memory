@@ -134,7 +134,13 @@ func (s *MemoryStore) Rank(opts RankOptions) ([]Ranked, error) {
 	bm25 := BM25Scores(query, allVisible)
 	var vecScores map[string]float64
 	if s.embedder != nil {
-		vecScores = VectorScores(s.embedder, query, allVisible)
+		// Intentar VP-Tree para busqueda aproximada mas rapida.
+		vpTree := s.vpTreeFor(now, opts.AsOf)
+		if vpTree != nil && vpTree.Len() >= 10 {
+			vecScores = vectorScoresVP(s.embedder, query, vpTree, allVisible)
+		} else {
+			vecScores = VectorScores(s.embedder, query, allVisible)
+		}
 	}
 
 	type scored struct {

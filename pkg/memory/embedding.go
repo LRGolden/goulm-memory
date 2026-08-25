@@ -64,6 +64,31 @@ func VectorScores(provider EmbeddingProvider, query string, docs []*Capsule) map
 	return out
 }
 
+// vectorScoresVP calcula scores vectoriales usando un VP-Tree pre-construido.
+// Devuelve un mapa key→score normalizado a [0,1]. Para cápsulas no encontradas
+// en el tree (fuera del radio), asigna score 0.
+func vectorScoresVP(provider EmbeddingProvider, query string, tree *VPTree, docs []*Capsule) map[string]float64 {
+	out := make(map[string]float64, len(docs))
+	if provider == nil || query == "" || tree == nil {
+		return out
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultEmbedTimeout)
+	defer cancel()
+	qEmb, err := provider.Embed(ctx, query)
+	if err != nil || len(qEmb) == 0 {
+		return out
+	}
+
+	// Buscar los k más cercanos usando VP-Tree.
+	// Usar un radio amplio para cubrir la mayoría de cápsulas.
+	results := tree.Search(qEmb, len(docs), 10.0)
+	for _, r := range results {
+		out[r.Key] = r.Score
+	}
+	return out
+}
+
 // cosineSim calcula la similitud coseno entre dos vectores.
 func cosineSim(a, b []float64) float64 {
 	if len(a) != len(b) || len(a) == 0 {

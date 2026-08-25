@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -123,5 +124,53 @@ func TestLinkKey(t *testing.T) {
 	}
 	if got := LinkKey("engine-arch"); got != "engine-arch" {
 		t.Errorf("plain link → %q", got)
+	}
+}
+
+// TestBuildGraphSharedTagsManyCapsules verifica que tags genéricos (>50
+// capsules) no crean edges sintéticos, pero links explícitos sí.
+func TestBuildGraphSharedTagsManyCapsules(t *testing.T) {
+	caps := make([]*Capsule, 100)
+	for i := range caps {
+		caps[i] = &Capsule{
+			ID:       fmt.Sprintf("id-%d", i),
+			Key:      fmt.Sprintf("key-%d", i),
+			Category: CategoryDecision,
+			Tags:     []string{"common", "test"},
+		}
+	}
+	// Un link explícito.
+	caps[0].Links = []string{"supersedes:key-5"}
+
+	g := BuildGraph(caps)
+
+	// Tags compartidos con 100 capsules (>50) no crean edges.
+	if hasNeighbor(g, "key-0", "key-1") {
+		t.Error("tags compartidos no deberían crear edges con >50 capsules")
+	}
+	// Link explícito SÍ crea edge.
+	if !hasNeighbor(g, "key-0", "key-5") {
+		t.Error("links explícitos deberían crear edges")
+	}
+}
+
+// TestBuildGraphSharedTagsBelowThreshold verifica que tags específicos
+// (≤50 capsules) SÍ crean edges cuando comparten ≥2 tags.
+func TestBuildGraphSharedTagsBelowThreshold(t *testing.T) {
+	caps := make([]*Capsule, 30)
+	for i := range caps {
+		caps[i] = &Capsule{
+			ID:       fmt.Sprintf("id-%d", i),
+			Key:      fmt.Sprintf("key-%d", i),
+			Category: CategoryDecision,
+			Tags:     []string{"specific-a", "specific-b"},
+		}
+	}
+
+	g := BuildGraph(caps)
+
+	// Tags específicos con 30 capsules (≤50) y 2 tags compartidos crean edges.
+	if !hasNeighbor(g, "key-0", "key-1") {
+		t.Error("tags específicos deberían crear edges con ≤50 capsules")
 	}
 }

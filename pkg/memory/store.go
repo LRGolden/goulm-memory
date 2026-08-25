@@ -143,6 +143,8 @@ type MemoryStore struct {
 	cachedGraphDay string // YYYY-MM-DD (la visibilidad cambia por día)
 	cachedAsOf     string
 	cachedGraphVer int
+	cachedVP       *VPTree // VP-Tree cacheado para vector search
+	cachedVPVer    int     // versión de mutación del VP-Tree
 }
 
 // NewStore crea (o abre) el almacén del proyecto. Si la carpeta no existe,
@@ -441,7 +443,7 @@ func (s *MemoryStore) Flush() error {
 	return nil
 }
 
-// bumpGraph invalida la cache de grafo tras una mutación del almacén.
+// bumpGraph invalida la cache de grafo y VP-Tree tras una mutación del almacén.
 func (s *MemoryStore) bumpGraph() { s.graphVer++ }
 
 // graphFor devuelve el grafo del proyecto cacheado por (versión, día, asOf).
@@ -470,6 +472,25 @@ func (s *MemoryStore) graphFor(now time.Time, asOf string) *Graph {
 func (s *MemoryStore) centralityFor(now time.Time, asOf string) map[string]float64 {
 	s.graphFor(now, asOf)
 	return s.cachedCentral
+}
+
+// vpTreeFor devuelve el VP-Tree cacheado, reconstruyéndolo si la versión
+// de mutación ha cambiado. El tree se construye sobre todas las cápsulas
+// visibles con embeddings.
+func (s *MemoryStore) vpTreeFor(now time.Time, asOf string) *VPTree {
+	if s.cachedVP != nil && s.cachedVPVer == s.graphVer {
+		return s.cachedVP
+	}
+	// Recopilar cápsulas visibles con embeddings.
+	all := make([]*Capsule, 0, len(s.entries))
+	for _, c := range s.entries {
+		if c.IsVisible(now, asOf) && len(c.Embedding) > 0 {
+			all = append(all, c)
+		}
+	}
+	s.cachedVP = BuildVPTree(all)
+	s.cachedVPVer = s.graphVer
+	return s.cachedVP
 }
 
 // atomicWrite escribe un archivo de forma atómica: temp + rename.
