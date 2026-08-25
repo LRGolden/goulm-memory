@@ -1,23 +1,23 @@
-# Formatos de archivo
+# File formats
 
-Descripción de los formatos que escribe `goulm-memory` en disco. Útil para
-inspección manual, debugging, migraciones y herramientas externas.
+Description of the formats that `goulm-memory` writes to disk. Useful for
+manual inspection, debugging, migrations and external tools.
 
-## Layout de directorio del store
+## Store directory layout
 
-`MemoryStore` escribe en un directorio (por defecto
-`~/.goulm-memory/<ProjectID>` o el `Dir` de `Config`). Dependiendo del
-formato (`json` o `ambar`), la extensión de los archivos de datos cambia
+`MemoryStore` writes to a directory (by default
+`~/.goulm-memory/<ProjectID>` or the `Dir` of `Config`). Depending on the
+format (`json` or `amber`), the data file extension changes
 (`.json` vs `.amb`):
 
 ```
 <dir>/
-├── memory.json        # cápsulas activas (JSON) — o memory.amb (Ámbar)
-├── archive.json       # cápsulas archivadas — o archive.amb
-├── config.json        # metadatos del store (formato, proyecto, vocabulario)
-├── memory.lock        # lock de escritura (pid + timestamp)
-├── backups/           # backups del store (memory-<stamp>.json)
-└── sessions/          # heartbeats de sesión (<session-id>.json)
+├── memory.json        # active capsules (JSON) — or memory.amb (Amber)
+├── archive.json       # archived capsules — or archive.amb
+├── config.json        # store metadata (format, project, vocabulary)
+├── memory.lock        # write lock (pid + timestamp)
+├── backups/           # store backups (memory-<stamp>.json)
+└── sessions/          # session heartbeats (<session-id>.json)
 ```
 
 ## `config.json`
@@ -31,16 +31,16 @@ formato (`json` o `ambar`), la extensión de los archivos de datos cambia
 }
 ```
 
-- `format`: `"json"` o `"ambar"` (formato de los archivos de datos).
-- `project`: nombre declarado del proyecto.
-- `max_entries`: límite de cápsulas activas (podado al arrancar/guardar).
-- `vocab`: vocabulario del proyecto para inferencia de tags
-  (`map[tag]palabras`); lo construye `ExtractProjectDeps`.
+- `format`: `"json"` or `"amber"` (format of the data files).
+- `project`: declared project name.
+- `max_entries`: active capsule limit (pruned on start/save).
+- `vocab`: project vocabulary for tag inference
+  (`map[tag]words`); built by `ExtractProjectDeps`.
 
-## Formato JSON
+## JSON format
 
-Archivos `memory.json` y `archive.json` con este esquema (indentado 2
-espacios):
+Files `memory.json` and `archive.json` with this schema (indented 2
+spaces):
 
 ```json
 {
@@ -52,9 +52,9 @@ espacios):
       "id": "a1b2c3d4",
       "category": "decision",
       "key": "auth-jwt",
-      "content": "Usar JWT para autenticación",
+      "content": "Use JWT for authentication",
       "file": "cmd/server/main.go",
-      "tags": ["auth", "seguridad"],
+      "tags": ["auth", "security"],
       "date": "2026-08-19",
       "ttl": "30d",
       "accessed": 3,
@@ -71,92 +71,92 @@ espacios):
 }
 ```
 
-Campos con `omitempty` (ausentes si vienen a cero): `file`, `tags`, `ttl`,
+Fields with `omitempty` (absent if zero): `file`, `tags`, `ttl`,
 `links`, `last_accessed`, `path_scope`, `superseded_on`. `id`, `category`,
-`key`, `content`, `date`, `quality`, `confidence`, `origin` y `status`
-siempre presentes.
+`key`, `content`, `date`, `quality`, `confidence`, `origin` and `status`
+always present.
 
-## Formato Ámbar
+## Amber format
 
-Formato de texto plano orientado a líneas (extensión `.amb`), pensado para
-ser diff-friendly y legible en terminal. Escapa `\`, `|`, `\n` y `\r` con
+Line-oriented plain text format (extension `.amb`), designed to be
+diff-friendly and terminal-readable. Escapes `\`, `|`, `\n` and `\r` with
 backslash.
 
 ```
 v:1|project:goulm-cli|updated:2026-08-20T10:30:00Z|count:1
 ~
-id:a1b2c3d4|key:auth-jwt|cat:decision|date:2026-08-19|tags:auth;seguridad|ttl:30d|acc:3|q:0.72|c:0.95|origin:human|status:active|pri:3
-content>Usar JWT para autenticación
+id:a1b2c3d4|key:auth-jwt|cat:decision|date:2026-08-19|tags:auth;security|ttl:30d|acc:3|q:0.72|c:0.95|origin:human|status:active|pri:3
+content>Use JWT for authentication
 file>cmd/server/main.go
 links>auth-session
 scope>cmd/**
 last>2026-08-20T09:00:00Z
 ```
 
-- **Cabecera** (línea 1): `v:<version>|project:<id>|updated:<ISO>|count:<n>`.
-- Cada cápsula empieza con una línea `~`.
-- Línea de atributos: pares `clave:valor` separados por `|`. Claves: `id`,
-  `key`, `cat`, `date`, `tags` (`;`-separadas), `ttl`, `acc`, `q`, `c`,
+- **Header** (line 1): `v:<version>|project:<id>|updated:<ISO>|count:<n>`.
+- Each capsule starts with a `~` line.
+- Attributes line: `key:value` pairs separated by `|`. Keys: `id`,
+  `key`, `cat`, `date`, `tags` (`;`-separated), `ttl`, `acc`, `q`, `c`,
   `origin`, `status`, `pri`.
-- Líneas opcionales de cuerpo: `content>`, `file>`, `links>` (`;`-separadas),
+- Optional body lines: `content>`, `file>`, `links>` (`;`-separated),
   `scope>`, `last>`, `superseded>`.
-- El parser (`UnmarshalAmbar`) es **tolerante**: campos desconocidos se
-  ignoran y los faltantes usan defaults (`knowledge`/`agent`/`active`).
-- Atributos con valor por defecto se omiten al serializar (`origin:agent`,
+- The parser (`UnmarshalAmbar`) is **tolerant**: unknown fields are
+  ignored and missing fields use defaults (`knowledge`/`agent`/`active`).
+- Default-value attributes are omitted when serializing (`origin:agent`,
   `status:active`, `pri:0`, `acc:0`).
 
-## Formato del ledger
+## Ledger format
 
-El ledger es **JSON-lines** (una línea = un evento), con rotación automática.
-Versión del evento: `v:2` (el parser acepta v1 y v2).
+The ledger is **JSON-lines** (one line = one event), with automatic rotation.
+Event version: `v:2` (parser accepts v1 and v2).
 
 ```
-<ledger-home>/<Proyecto>/
-├── ledger.jsonl       # archivo activo (ventana de eventos)
+<ledger-home>/<Project>/
+├── ledger.jsonl       # active file (event window)
 └── archives/
-    └── 2026-08.jsonl  # eventos antiguos agrupados por mes
+    └── 2026-08.jsonl  # old events grouped by month
 ```
 
-### Evento
+### Event
 
 ```json
 {"v":2,"ts":"2026-08-20T09:00:00Z","type":"tool","action":"memory_remember","session":"s-abc","path":"auth-jwt","detail":"decision","risk":"low","status":"ok","duration_ms":12,"test":false}
 ```
 
-Campos:
+Fields:
 
-| Campo | Obligatorio | Descripción |
-|-------|-------------|-------------|
-| `v` | sí | Versión del formato (1 o 2). |
-| `ts` | sí | Timestamp RFC3339. |
-| `type` | sí | `tool`, `edit`, `commit`, `error`, `memory`, `session`, `milestone`, `approval`, `branch`, `checkout`, `test`, `system`. |
-| `action` | no | Acción concreta (p. ej. `memory_remember`, `start`, `end`, `mark`). |
-| `session` | no | ID de sesión. |
-| `path` | no | Ruta (normalizada relativa a la raíz del proyecto) o clave de memoria. |
-| `detail` | no | Detalle (cortado a 300 runas y con secretos enmascarados). |
-| `hash` | no | Hash de commit (8+ caracteres hex). |
+| Field | Required | Description |
+|-------|----------|-------------|
+| `v` | yes | Format version (1 or 2). |
+| `ts` | yes | RFC3339 timestamp. |
+| `type` | yes | `tool`, `edit`, `commit`, `error`, `memory`, `session`, `milestone`, `approval`, `branch`, `checkout`, `test`, `system`. |
+| `action` | no | Concrete action (e.g. `memory_remember`, `start`, `end`, `mark`). |
+| `session` | no | Session ID. |
+| `path` | no | Path (normalized relative to project root) or memory key. |
+| `detail` | no | Detail (truncated to 300 runes with secrets masked). |
+| `hash` | no | Commit hash (8+ hex chars). |
 | `risk` | no | `low`/`medium`/`high`/`critical`. |
 | `status` | no | `ok`, `error`, `denied`, `blocked`. |
 | `approved` | no | `yes`, `no`, `na`. |
-| `tokens` | no | Uso de tokens. |
-| `cost_usd` | no | Coste en USD. |
-| `duration_ms` | no | Duración en ms. |
-| `turn` | no | Número de turno. |
-| `test` | no | Marca sesión de test. |
-| `id` | no | Identificador adicional. |
+| `tokens` | no | Token usage. |
+| `cost_usd` | no | Cost in USD. |
+| `duration_ms` | no | Duration in ms. |
+| `turn` | no | Turn number. |
+| `test` | no | Mark test session. |
+| `id` | no | Additional identifier. |
 
-### Rotación
+### Rotation
 
-- `DefaultLedgerWindow` = 200 eventos en el archivo activo (configurable con
+- `DefaultLedgerWindow` = 200 events in the active file (configurable with
   `WithWindow`).
-- Al escribir, si el activo supera la ventana **o** 48 KiB
-  (`defaultCompactSizeHint`), se compacta: los eventos excedentes se agrupan
-  por mes y se anexan a `archives/YYYY-MM.json`.
-- `GOULM_LEDGER=off` deshabilita el ledger por entorno.
+- On write, if the active file exceeds the window **or** 48 KiB
+  (`defaultCompactSizeHint`), it is compacted: excess events are grouped
+  by month and appended to `archives/YYYY-MM.json`.
+- `GOULM_LEDGER=off` disables the ledger via environment variable.
 
-## Formato de sesiones
+## Session format
 
-Cada sesión viva es un archivo JSON en `<dir>/sessions/<id>.json`:
+Each live session is a JSON file at `<dir>/sessions/<id>.json`:
 
 ```json
 {
@@ -171,22 +171,22 @@ Cada sesión viva es un archivo JSON en `<dir>/sessions/<id>.json`:
 }
 ```
 
-- `id`: de `GOULM_SESSION_ID` o autogenerado.
-- `files`: mapa `path → ISO de último toque`; tope de 200 archivos por
-  sesión (`maxHeartbeatFiles`), podando los más antiguos al exceder.
-- TTL de sesión: 10 min (`SessionTTL`). Una sesión se considera terminada si
-  su `last_seen` supera el TTL **y** su PID no está vivo.
-- `Prune` elimina heartbeats huérfanos.
+- `id`: from `GOULM_SESSION_ID` or auto-generated.
+- `files`: map of `path → ISO of last touch`; capped at 200 files per
+  session (`maxHeartbeatFiles`), pruning the oldest when exceeded.
+- Session TTL: 10 min (`SessionTTL`). A session is considered terminated if
+  its `last_seen` exceeds the TTL **and** its PID is not alive.
+- `Prune` removes orphaned heartbeats.
 
 ## Backups
 
-`memory_backup`/`Backup()` copian el estado completo del store a
-`<dir>/backups/memory-<stamp>.json` (o `.amb`), con `stamp` en
-`YYYY-MM-DDTHH-MM-SS` UTC. Se conservan hasta `MaxBackups` (default 10),
-podando los más antiguos.
+`memory_backup`/`Backup()` copy the full store state to
+`<dir>/backups/memory-<stamp>.json` (or `.amb`), with `stamp` in
+`YYYY-MM-DDTHH-MM-SS` UTC. Kept up to `MaxBackups` (default 10),
+pruning the oldest.
 
-## Migración de formato
+## Format migration
 
-`SetFormat(FormatAmbar)` (o `FormatJSON`) reescribe `memory` y `archive` en el
-nuevo formato (la extensión cambia a `.amb`/`.json`) y actualiza `config.json`.
-No hay datos compartidos entre formatos: se migra la carga actual completa.
+`SetFormat(FormatAmbar)` (or `FormatJSON`) rewrites `memory` and `archive` in the
+new format (extension changes to `.amb`/`.json`) and updates `config.json`.
+No data is shared between formats: the entire current load is migrated.

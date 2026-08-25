@@ -1,12 +1,12 @@
-# Integracion de Embeddings
+# Embeddings Integration
 
-goulm-memory soporta busqueda semantica via embeddings. La libreria no
-importa ningun proveedor -- el usuario trae el suyo via la interfaz
-`EmbeddingProvider`.
+goulm-memory supports semantic search via embeddings. The library does not
+import any provider -- the user brings their own via the
+`EmbeddingProvider` interface.
 
-## Que es un EmbeddingProvider
+## What is an EmbeddingProvider
 
-Una interfaz Go con dos metodos:
+A Go interface with two methods:
 
 ```go
 type EmbeddingProvider interface {
@@ -15,17 +15,17 @@ type EmbeddingProvider interface {
 }
 ```
 
-Las implementaciones deben ser seguras para uso concurrente por multiples
-goroutines (el store puede llamar Embed desde multiples Recall simultaneos).
+Implementations must be safe for concurrent use by multiple
+goroutines (the store may call Embed from multiple simultaneous Recalls).
 
-El contexto permite cancelar la operacion si el proveedor tarda demasiado
-(timeout de 5s por defecto en VectorScores).
+The context allows cancelling the operation if the provider takes too long
+(5s timeout by default in VectorScores).
 
-El usuario la implementa. La libreria la usa para:
-1. Buscar por similitud coseno en `Rank` (automatico si el provider esta configurado)
-2. Validar dimension de embeddings almacenados vs provider actual
+The user implements it. The library uses it for:
+1. Searching by cosine similarity in `Rank` (automatic if the provider is configured)
+2. Validating stored embedding dimensions vs the current provider
 
-## Ejemplo: OpenAI
+## Example: OpenAI
 
 ```go
 package main
@@ -68,7 +68,7 @@ func (e *OpenAIEmbedder) Embed(ctx context.Context, text string) ([]float64, err
     json.NewDecoder(resp.Body).Decode(&result)
 
     if len(result.Data) == 0 {
-        return nil, fmt.Errorf("sin embeddings")
+        return nil, fmt.Errorf("no embeddings")
     }
     return result.Data[0].Embedding, nil
 }
@@ -76,7 +76,7 @@ func (e *OpenAIEmbedder) Embed(ctx context.Context, text string) ([]float64, err
 func (e *OpenAIEmbedder) Dimension() int { return 1536 }
 ```
 
-## Ejemplo: modelo local (ollama)
+## Example: local model (ollama)
 
 ```go
 type OllamaEmbedder struct {
@@ -106,7 +106,7 @@ func (e *OllamaEmbedder) Embed(ctx context.Context, text string) ([]float64, err
     json.NewDecoder(resp.Body).Decode(&result)
 
     if len(result.Embeddings) == 0 {
-        return nil, fmt.Errorf("sin embeddings")
+        return nil, fmt.Errorf("no embeddings")
     }
     return result.Embeddings[0], nil
 }
@@ -114,7 +114,7 @@ func (e *OllamaEmbedder) Embed(ctx context.Context, text string) ([]float64, err
 func (e *OllamaEmbedder) Dimension() int { return 768 }
 ```
 
-## Configurar el store
+## Configuring the store
 
 ```go
 store, _ := memory.NewStore(memory.Config{
@@ -122,74 +122,74 @@ store, _ := memory.NewStore(memory.Config{
     Project: "my-app",
 })
 
-// Configurar el provider
+// Set the provider
 store.SetEmbedder(&OpenAIEmbedder{APIKey: "sk-..."})
 ```
 
-## Pre-calcul embeddings (recomendado)
+## Pre-calculating embeddings (recommended)
 
-Para evitar llamadas HTTP dentro del lock de `Remember`, pre-calcula el
-embedding y pasalo en las opciones:
+To avoid HTTP calls inside the `Remember` lock, pre-calculate the
+embedding and pass it in the options:
 
 ```go
 ctx := context.Background()
-emb, _ := embedder.Embed(ctx, "Usar JWT para auth")
+emb, _ := embedder.Embed(ctx, "Use JWT for auth")
 
 res, _ := store.Remember(memory.RememberOptions{
     Key:       "auth-jwt",
     Category:  memory.CategoryDecision,
-    Content:   "Usar JWT para auth",
-    Embedding: emb, // pre-calculado, fuera del lock
+    Content:   "Use JWT for auth",
+    Embedding: emb, // pre-calculated, outside the lock
 })
 ```
 
-## Busqueda semantica
+## Semantic search
 
-Una vez configurado el provider, la busqueda vectorial es automatica:
+Once the provider is configured, vector search is automatic:
 
 ```go
-// BM25 + vector similarity (peso 0.3)
-ranked, _ := store.Recall("autenticacion", &memory.Query{Limit: 5})
+// BM25 + vector similarity (weight 0.3)
+ranked, _ := store.Recall("authentication", &memory.Query{Limit: 5})
 
-// Con RRF (fusion de rangos): BM25 + vector como rankers separados
-ranked, _ = store.Recall("autenticacion", &memory.Query{
+// With RRF (rank fusion): BM25 + vector as separate rankers
+ranked, _ = store.Recall("authentication", &memory.Query{
     Limit: 5,
     RRF:   true,
 })
 ```
 
-Sin provider configurado, el pipeline es identico al de v0.3.x.
+Without a configured provider, the pipeline is identical to v0.3.x.
 
-## Validacion de dimension
+## Dimension validation
 
-El store valida automaticamente que los embeddings almacenados coincidan
-con la dimension del provider actual. Si una capsula tiene un embedding
-de dimension diferente, se salta en la busqueda vectorial (degradation
-graceful, no error).
+The store automatically validates that stored embeddings match
+the dimension of the current provider. If a capsule has an embedding
+of a different dimension, it is skipped during vector search (graceful
+degradation, no error).
 
-El campo `EmbeddingDim` en la capsula registra la dimension del provider
-al momento de almacenar.
+The `EmbeddingDim` field in the capsule records the provider's dimension
+at the time of storage.
 
-## Formato Ambar
+## Amber Format
 
-Los embeddings se persisten como `embedding>0.12,0.34,...` en formato Ambar.
-Archivos viejos sin embedding se leen correctamente (el campo queda nil).
+Embeddings are persisted as `embedding>0.12,0.34,...` in Amber format.
+Old files without embeddings are read correctly (the field remains nil).
 
-## Costo en almacenamiento
+## Storage cost
 
-Cada embedding de 1536 dimensiones (OpenAI text-embedding-3-small) ocupa:
+Each 1536-dimensional embedding (OpenAI text-embedding-3-small) takes up:
 
-| Formato | Por capsula | 100 capsulas | 1000 capsulas |
+| Format | Per capsule | 100 capsules | 1000 capsules |
 |---------|-------------|--------------|---------------|
-| Memoria | ~12 KB | ~1.2 MB | ~12 MB |
+| Memory | ~12 KB | ~1.2 MB | ~12 MB |
 | JSON | ~27 KB | ~2.7 MB | ~27 MB |
-| Ambar | ~18 KB | ~1.8 MB | ~18 MB |
+| Amber | ~18 KB | ~1.8 MB | ~18 MB |
 
-Para reducir el costo:
-- Usar modelos de menor dimension (384 en vez de 1536)
-- El default `MaxEntries: 100` limita el crecimiento
+To reduce cost:
+- Use lower-dimensional models (384 instead of 1536)
+- The default `MaxEntries: 100` limits growth
 
-## Mas informacion
+## Further reading
 
-- [API.md](API.md) — Referencia de `EmbeddingProvider`
-- [ADVANCED.md](ADVANCED.md) — Integracion avanzada
+- [API.md](API.md) — `EmbeddingProvider` reference
+- [ADVANCED.md](ADVANCED.md) — Advanced integration

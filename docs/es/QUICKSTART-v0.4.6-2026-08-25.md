@@ -1,14 +1,14 @@
 # Quickstart
 
-Quick guide to get started with goulm-memory.
+Guia rapida para empezar a usar goulm-memory.
 
-## Installation
+## Instalacion
 
 ```bash
 go get github.com/LRGolden/goulm-memory
 ```
 
-## 1. Create the store
+## 1. Crear el store
 
 ```go
 import (
@@ -26,70 +26,70 @@ store, err := memory.NewStore(memory.Config{
 })
 ```
 
-## 2. Remember something
+## 2. Recordar algo
 
 ```go
 res, err := store.Remember(memory.RememberOptions{
     Key:      "auth-jwt",
     Category: memory.CategoryDecision,
-    Content:  "Use JWT for authentication. Refresh token with 7-day TTL.",
-    Tags:     []string{"auth", "security", "jwt"},
+    Content:  "Usar JWT para autenticacion. Refresh token con TTL de 7d.",
+    Tags:     []string{"auth", "seguridad", "jwt"},
     Origin:   memory.OriginHuman,
     Priority: 3,
 })
-// res.Created = true (new) or false (merged with existing)
+// res.Created = true (nueva) o false (fusionada con existente)
 ```
 
-Available categories: `CategoryDecision`, `CategoryPattern`, `CategoryBug`, `CategoryKnowledge`.
+Categorias disponibles: `CategoryDecision`, `CategoryPattern`, `CategoryBug`, `CategoryKnowledge`.
 
-## 3. Search
+## 3. Buscar
 
 ```go
-// Basic search
-ranked, err := store.Recall("authentication", &memory.Query{Limit: 5})
+// Busqueda basica
+ranked, err := store.Recall("autenticacion", &memory.Query{Limit: 5})
 for _, r := range ranked {
     fmt.Printf("%.3f  %s/%s\n", r.Score, r.Capsule.Category, r.Capsule.Key)
 }
 
-// Search with filters
+// Busqueda con filtros
 ranked, err := store.Recall("jwt", &memory.Query{
     Category: memory.CategoryDecision,
-    Tags:     []string{"security"},
+    Tags:     []string{"seguridad"},
     Limit:    3,
 })
 
-// Suggestions based on context (without explicit query)
-sugs, err := store.Suggest("we're talking about login", 3)
+// Sugerencias sobre un contexto (sin query explicita)
+sugs, err := store.Suggest("estamos hablando de login", 3)
 ```
 
-## 4. View status
+## 4. Ver estado
 
 ```go
 stats, err := store.Stats()
-fmt.Printf("Total: %d capsules\n", stats.Total)
-fmt.Printf("By category: %v\n", stats.ByCategory)
+fmt.Printf("Total: %d capsulas\n", stats.Total)
+fmt.Printf("Por categoria: %v\n", stats.ByCategory)
 ```
 
-## 5. Forget and restore
+## 5. Olvidar y restaurar
 
 ```go
-// Soft delete (remains as obsolete, can be restored)
+// Soft delete (queda como obsolete, se puede restaurar)
 store.Forget("auth-jwt", false)
 
-// Restore
+// Restaurar
 store.Resolve("auth-jwt")
 
-// Hard delete (permanent deletion)
+// Hard delete (eliminacion permanente)
 store.Forget("auth-jwt", true)
 ```
 
-## 6. Persist
+## 6. Persistir
 
 ```go
-store.Flush() // force write to disk
+store.Flush() // forzar escritura a disco
 ```
 
-## Complete example
+## Ejemplo completo
 
 ```go
 package main
@@ -114,19 +114,19 @@ func main() {
         panic(err)
     }
 
-    // Remember
+    // Recordar
     store.Remember(memory.RememberOptions{
         Key:      "auth-jwt",
         Category: memory.CategoryDecision,
-        Content:  "Use JWT for authentication",
+        Content:  "Usar JWT para autenticacion",
         Tags:     []string{"auth"},
     })
 
-    // Search
+    // Buscar
     ranked, _ := store.Recall("auth", &memory.Query{Limit: 5})
     fmt.Println(memory.Render(ranked, memory.BudgetNormal))
 
-    // Status
+    // Estado
     stats, _ := store.Stats()
     fmt.Println(memory.RenderStats(stats))
 
@@ -134,7 +134,7 @@ func main() {
 }
 ```
 
-## Next steps
+## Siguientes pasos
 
-- [API.md](API.md) — Complete API reference
+- [API.md](API.md) — Referencia completa de la API
 - [ADVANCED.md](ADVANCED.md) — Sessions, ledger, graph, tools

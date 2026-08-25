@@ -1,6 +1,6 @@
-# API Reference
+# Referencia de API
 
-Reference for `github.com/LRGolden/goulm-memory`. Requires Go 1.26+.
+Referencia de `github.com/LRGolden/goulm-memory`. Requiere Go 1.26+.
 
 ```go
 import "github.com/LRGolden/goulm-memory/pkg/memory"
@@ -8,11 +8,11 @@ import "github.com/LRGolden/goulm-memory/pkg/memory"
 
 ---
 
-## Essential API
+## API esencial
 
-What you need to remember, search, and maintain capsules.
+Lo que necesitas para recordar, buscar y mantener capsulas.
 
-### Base Types
+### Tipos base
 
 ```go
 type Category string
@@ -76,17 +76,17 @@ func (c *Capsule) Clone() *Capsule
 
 ```go
 type Config struct {
-    Dir        string // persistence directory
+    Dir        string // directorio de persistencia
     Format     Format // json (default) | ambar
-    Project    string // project name
-    MaxEntries int    // max active capsules (default 100)
-    MaxBackups int    // backups to keep (default 10)
+    Project    string // nombre del proyecto
+    MaxEntries int    // limite de capsulas activas (default 100)
+    MaxBackups int    // backups a conservar (default 10)
 }
 
 func NewStore(cfg Config) (*MemoryStore, error)
 ```
 
-### Write
+### Escritura
 
 ```go
 type RememberOptions struct {
@@ -99,7 +99,7 @@ type RememberOptions struct {
     Priority  int      // 0-5
     TTL       string
     PathScope string
-    Verbatim  bool     // true: skip tag inference and quality recalculation
+    Verbatim  bool     // true: sin inferir tags ni recalcular calidad
 }
 
 type RememberResult struct {
@@ -115,11 +115,11 @@ func (s *MemoryStore) Pin(key string, priority int) (bool, error)
 func (s *MemoryStore) Flush() error
 ```
 
-- `Forget(key, false)`: soft delete, marks as `obsolete` and records `SupersededOn`.
-- `Forget(key, true)`: hard delete, permanently removes.
-- `Resolve(key)`: restores soft-deleted to `active` and clears `SupersededOn`.
+- `Forget(key, false)`: soft delete, marca `obsolete` y registra `SupersededOn`.
+- `Forget(key, true)`: hard delete, elimina permanentemente.
+- `Resolve(key)`: restaura soft-deleted a `active` y limpia `SupersededOn`.
 
-### Query
+### Consulta
 
 ```go
 type Query struct {
@@ -129,12 +129,12 @@ type Query struct {
     FromDate     string          // YYYY-MM-DD
     ToDate       string          // YYYY-MM-DD
     PathScope    string          // glob
-    AsOf         string          // temporal view YYYY-MM-DD
+    AsOf         string          // vista temporal YYYY-MM-DD
     Limit        int             // default 6
-    Graph        bool            // expand ego-subgraph
-    Hops         int             // 1 or 2 (default 1)
-    RRF          bool            // rank fusion
-    SessionFiles map[string]bool // files touched by the session
+    Graph        bool            // expandir ego-subgraph
+    Hops         int             // 1 o 2 (default 1)
+    RRF          bool            // fusion de rangos
+    SessionFiles map[string]bool // archivos tocados por la sesion
 }
 
 type Ranked struct {
@@ -163,7 +163,7 @@ const (
 func Render(rs []Ranked, budget Budget) string
 ```
 
-### Stats
+### Estado
 
 ```go
 type StatsView struct {
@@ -183,7 +183,7 @@ func (s *MemoryStore) Stats() (StatsView, error)
 func RenderStats(st StatsView) string
 ```
 
-### Metadata
+### Metadatos
 
 ```go
 func (s *MemoryStore) Dir() string
@@ -195,12 +195,12 @@ func (s *MemoryStore) Vocab() map[string][]string
 
 ---
 
-## Full API
+## API completa
 
-Additional functions for advanced usage. See [ADVANCED.md](ADVANCED.md)
-for the integration guide.
+Funciones adicionales para uso avanzado. Ver [ADVANCED.md](ADVANCED.md)
+para guia de integracion.
 
-### Extended Write
+### Escritura extendida
 
 ```go
 func (s *MemoryStore) ArchiveOld() (int, error)
@@ -210,7 +210,7 @@ func (s *MemoryStore) ExportJSON() ([]byte, error)
 func (s *MemoryStore) SetFormat(f Format) error
 ```
 
-### Advanced Query
+### Consulta avanzada
 
 ```go
 type RankOptions struct {
@@ -242,19 +242,19 @@ func (s *MemoryStore) SetEmbedder(p EmbeddingProvider)
 func (s *MemoryStore) Embedder() EmbeddingProvider
 ```
 
-`RememberOptions` includes `Embedding []float64` for pre-computed embeddings.
-The `EmbeddingDim` field in `Capsule` records the provider's dimension at
-the time of storage.
-See [EMBEDDINGS.md](EMBEDDINGS.md) for the full guide.
+`RememberOptions` incluye `Embedding []float64` para embedding pre-calculado.
+El campo `EmbeddingDim` en `Capsule` registra la dimension del provider al
+momento de almacenar.
+Ver [EMBEDDINGS.md](EMBEDDINGS.md) para guia completa.
 
-### VP-Tree (Approximate Vector Search)
+### VP-Tree (busqueda vectorial aproximada)
 
 ```go
-type VPTree struct { /* internal */ }
+type VPTree struct { /* interno */ }
 type SearchResult struct {
     Key      string
-    Score    float64 // normalized cosine similarity [0,1]
-    Distance float64 // Euclidean distance to the query
+    Score    float64 // similitud coseno normalizada [0,1]
+    Distance float64 // distancia euclidiana al query
 }
 
 func BuildVPTree(capsules []*Capsule) *VPTree
@@ -263,14 +263,14 @@ func (t *VPTree) Len() int
 func (t *VPTree) Version() int
 ```
 
-The VP-Tree is automatically built when an `EmbeddingProvider` is
-configured and capsules have embeddings. It is cached and rebuilt when the
-store mutates. See [VECTOR_SEARCH.md](VECTOR_SEARCH.md) for details.
+El VP-Tree se construye automaticamente cuando hay un `EmbeddingProvider`
+configurado y capsules con embeddings. Se cachea y reconstruye cuando el
+store muta. Ver [VECTOR_SEARCH.md](VECTOR_SEARCH.md) para detalles.
 
-### Graph
+### Grafo
 
 ```go
-type Graph struct { /* internal */ }
+type Graph struct { /* interno */ }
 func BuildGraph(capsules []*Capsule) *Graph
 func LinkKey(token string) string
 func (g *Graph) Neighbors(key string) []string
@@ -282,7 +282,7 @@ func (g *Graph) EgoExpand(seeds []string, hops int, visible func(*Capsule) bool)
 func (g *Graph) ShortestPath(a, b string) []string
 ```
 
-### Sessions
+### Sesiones
 
 ```go
 func (s *MemoryStore) Sessions(agent string) (*SessionTracker, error)
@@ -350,7 +350,7 @@ func (l *Ledger) Summary() string
 func (l *Ledger) CompactNow() error
 ```
 
-### Reports and Maintenance
+### Reportes y mantenimiento
 
 ```go
 type DiffReport struct {
@@ -403,21 +403,21 @@ func InferTags(content, key string, projectVocab map[string][]string) []string
 func ExtractProjectDeps(dir string) map[string][]string
 ```
 
-### Ambar Format
+### Formato Ambar
 
 ```go
 func MarshalAmbar(project string, capsules []*Capsule) string
 func UnmarshalAmbar(data string) (project string, capsules []*Capsule, err error)
 ```
 
-See [FORMATS.md](FORMATS.md).
+Ver [FORMATS.md](FORMATS.md).
 
 ---
 
 ## pkg/tools
 
-See [TOOLS.md](TOOLS.md) for the tools table and [ADVANCED.md](ADVANCED.md)
-for the integration guide.
+Ver [TOOLS.md](TOOLS.md) para tabla de tools y [ADVANCED.md](ADVANCED.md)
+para guia de integracion.
 
 ### Registry
 
@@ -430,7 +430,7 @@ func (r *Registry) Names() []string
 func (r *Registry) Count() int
 ```
 
-### Tool Registration
+### Registro de tools
 
 ```go
 func RegisterMemoryTools(r *Registry, store *memory.MemoryStore, tracker *memory.SessionTracker)
@@ -454,9 +454,9 @@ func (h *LedgerHook) Close()
 ## Demo (cmd/demo)
 
 ```bash
-go run ./cmd/demo [subcommand] [-dir <path>]
+go run ./cmd/demo [subcomando] [-dir <ruta>]
 ```
 
-Subcommands: `demo`, `remember`, `recall`, `stats`, `suggest`, `brief`, `pin`,
+Subcomandos: `demo`, `remember`, `recall`, `stats`, `suggest`, `brief`, `pin`,
 `forget`, `resolve`, `backup`, `archive`, `consolidate`, `ledger-tail`,
 `ledger-log`, `tools`, `help`.

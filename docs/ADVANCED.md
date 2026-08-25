@@ -1,66 +1,66 @@
-# Uso avanzado
+# Advanced Usage
 
-Guia para integraciones avanzadas: sesiones concurrentes, ledger de actividad,
-grafo de enlaces y tools registrables.
+Guide for advanced integrations: concurrent sessions, activity ledger,
+link graph and registerable tools.
 
-## Sesiones
+## Sessions
 
-El `SessionTracker` coordina multiples instancias del mismo agente:
+The `SessionTracker` coordinates multiple instances of the same agent:
 
 ```go
 tracker, err := store.Sessions("mi-agente")
-tracker.SetRoot("") // usa el cwd para detectar rama git
+tracker.SetRoot("") // use the cwd to detect git branch
 
-// Heartbeat periodico (cada ~60s)
+// Periodic heartbeat (every ~60s)
 tracker.Heartbeat("src/main.go", false)
 
-// Archivos tocados en la sesion
+// Files touched in the session
 tracker.Touch("src/auth.go")
 tracker.Touch("src/db.go")
 
-// Consultar sesiones activas
+// Query active sessions
 sessions, _ := tracker.ActiveSessions()
 conflicts, _ := tracker.Conflicts()
 fmt.Println(memory.RenderSessions(sessions, conflicts, false))
 
-// Finalizar
+// End
 tracker.End()
 ```
 
-### Coordinacion multi-proceso
+### Multi-process coordination
 
-- Heartbeat TTL: 10 minutos
-- Lock de archivo con stale detection (15s)
-- Conflictos de archivos entre sesiones detectados por `Conflicts()`
-- `SessionFiles()` devuelve los archivos tocados por la sesion actual,
-  utiles para el sesgo de sesion en `Query.SessionFiles`
+- Heartbeat TTL: 10 minutes
+- File lock with stale detection (15s)
+- File conflicts between sessions detected by `Conflicts()`
+- `SessionFiles()` returns the files touched by the current session,
+  useful for session bias in `Query.SessionFiles`
 
 ## Ledger
 
-Registro de actividad en JSON-lines con rotacion y compactacion:
+Activity logging in JSON-lines with rotation and compaction:
 
 ```go
 ledger, err := memory.NewLedger(cwd)
-// Se deshabilita automaticamente si no hay permisos de escritura
-// GOULM_LEDGER=off lo deshabilita desde entorno
+// Automatically disabled if no write permissions
+// GOULM_LEDGER=off disables it from environment
 
-// Registrar eventos
+// Log events
 ledger.AppendTool("read_file", "src/main.go", "ok", "low", 250, session, false)
-ledger.AppendEdit("edit", "src/main.go", "cambio de auth", session, false)
+ledger.AppendEdit("edit", "src/main.go", "auth change", session, false)
 ledger.AppendCommit("abc123", "feat: auth", "main", session)
-ledger.AppendMilestone("v1.0 publicado", session)
+ledger.AppendMilestone("v1.0 published", session)
 
-// Consultar
+// Query
 events := ledger.Tail(10, "", false)
 stats := ledger.Stats()
 summary := ledger.Summary()
 
-// Exportar y compactar
+// Export and compact
 export, _ := ledger.Export("2026-08-01", "2026-08-31")
 ledger.CompactNow()
 ```
 
-### Formato de eventos
+### Event format
 
 ```go
 type LedgerEvent struct {
@@ -78,85 +78,85 @@ type LedgerEvent struct {
 }
 ```
 
-### Formateo de eventos
+### Event formatting
 
 ```go
-// Linea corta (para tail)
+// Short line (for tail)
 fmt.Println(memory.FormatEvent(ev))
 
-// Linea completa (con fecha ISO)
+// Full line (with ISO date)
 fmt.Println(memory.FormatEventFull(ev))
 ```
 
-## Grafo de enlaces
+## Link graph
 
-Construye un grafo a partir de links explicitos, referencias `[[wiki-style]]`
-y co-ocurrencia de tags (>=2 tags compartidos):
+Builds a graph from explicit links, `[[wiki-style]]` references
+and tag co-occurrence (>=2 shared tags):
 
 ```go
 graph := memory.BuildGraph(capsules)
 
-// Vecinos directos
+// Direct neighbors
 neighbors := graph.Neighbors("auth-jwt")
 
-// Expansion ego-subgraph (BFS)
+// Ego-subgraph expansion (BFS)
 dist := graph.EgoExpand([]string{"auth-jwt"}, 2, nil)
 
-// Camino mas corto
+// Shortest path
 path := graph.ShortestPath("auth-jwt", "db-schema")
 
-// Centralidad (betweenness simplificada)
+// Centrality (simplified betweenness)
 centrality := graph.Centrality()
 
-// En busquedas: Graph=true, Hops=1 o 2
+// In searches: Graph=true, Hops=1 or 2
 ranked, _ := store.Recall("auth", &memory.Query{
     Graph: true,
     Hops:  2,
-    RRF:   true, // fusion de rangos
+    RRF:   true, // rank fusion
 })
 ```
 
 ### LinkKey
 
-Normaliza un token de link para usarlo como nodo del grafo:
+Normalizes a link token to use as a graph node:
 
 ```go
 memory.LinkKey("supersedes:engine-arch") // "engine-arch"
 memory.LinkKey("engine-arch")            // "engine-arch"
 ```
 
-## Tags e inferencia
+## Tags and inference
 
 ```go
-// Inferir tags desde el contenido
-tags := memory.InferTags("Usar JWT para autenticacion", "auth-jwt", vocab)
+// Infer tags from content
+tags := memory.InferTags("Use JWT for authentication", "auth-jwt", vocab)
 
-// Extraer vocabulario del proyecto (go.mod, package.json, requirements.txt)
+// Extract project vocabulary (go.mod, package.json, requirements.txt)
 vocab := memory.ExtractProjectDeps("/path/to/project")
 store.SetVocab(vocab)
 ```
 
-## Consolidacion
+## Consolidation
 
-Merge automatico de duplicados y near-duplicates:
+Automatic merge of duplicates and near-duplicates:
 
 ```go
 report, err := store.Consolidate()
-// report.Merged = capsulas fusionadas por clave
-// report.NearDuplicates = near-duplicates por Jaccard
-// report.Removed = duplicados exactos eliminados
+// report.Merged = capsules merged by key
+// report.NearDuplicates = near-duplicates by Jaccard
+// report.Removed = exact duplicates removed
 ```
 
-## Backup y mantenimiento
+## Backup and maintenance
 
 ```go
-// Backup con poda
+// Backup with pruning
 path, _ := store.Backup()
 
-// Archivar capsulas viejas (>30 dias)
+// Archive old capsules (>30 days)
 archived, _ := store.ArchiveOld()
 
-// Diff contra un timestamp
+// Diff against a timestamp
 diff, _ := store.Diff("2026-08-01")
 
 // Health check
@@ -164,45 +164,45 @@ health, _ := store.Health(".")
 fmt.Println(memory.RenderHealth(health))
 ```
 
-## Formato Ambar
+## Amber Format
 
-Alternativa a JSON, orientado a lineas y diff-friendly:
+Alternative to JSON, line-oriented and diff-friendly:
 
 ```go
-// Serializar
+// Serialize
 data := memory.MarshalAmbar("my-project", capsules)
 
-// Deserializar
+// Deserialize
 project, capsules, err := memory.UnmarshalAmbar(data)
 ```
 
-## Integracion con un agente
+## Agent integration
 
 ```go
-// 1. Crear store
+// 1. Create store
 store, _ := memory.NewStore(memory.Config{
     Dir:     dir,
     Project: projectID,
 })
 store.SetVocab(memory.ExtractProjectDeps(cwd))
 
-// 2. Sesion (opcional)
+// 2. Session (optional)
 tracker, _ := store.Sessions("agente-1")
 tracker.SetRoot("")
 
-// 3. Ledger (opcional)
+// 3. Ledger (optional)
 ledger, _ := memory.NewLedger(cwd)
 hook := tools.NewLedgerHook(ledger)
 defer hook.Close()
 hook.StartSession("agente-1")
 defer hook.EndSession()
 
-// 4. Registrar tools
+// 4. Register tools
 reg := tools.NewRegistry()
 tools.RegisterMemoryTools(reg, store, tracker)
 tools.RegisterLedgerTools(reg, hook)
 
-// 5. Ejecutar tools desde el agente
+// 5. Execute tools from the agent
 tool, ok := reg.Get("memory_recall")
 if ok {
     result, err := tool.Execute(ctx, `{"q": "auth", "limit": 5}`)
@@ -212,67 +212,67 @@ if ok {
 
 ## Embeddings
 
-Busqueda semantica via embeddings. Ver [EMBEDDINGS.md](EMBEDDINGS.md) para
-guia completa con ejemplos de OpenAI y modelos locales.
+Semantic search via embeddings. See [EMBEDDINGS.md](EMBEDDINGS.md) for a
+complete guide with OpenAI and local model examples.
 
 ```go
-// Configurar provider
+// Configure provider
 store.SetEmbedder(&MiProvider{apiKey: "..."})
 
-// Pre-calcul (recomendado, evita lock)
+// Pre-calc (recommended, avoids locks)
 ctx := context.Background()
-emb, _ := embedder.Embed(ctx, "texto")
+emb, _ := embedder.Embed(ctx, "text")
 store.Remember(memory.RememberOptions{
     Key: "mi-clave", Category: memory.CategoryDecision,
-    Content: "texto", Embedding: emb,
+    Content: "text", Embedding: emb,
 })
 
-// Busqueda automatica (BM25 + vector)
+// Automatic search (BM25 + vector)
 ranked, _ := store.Recall("query", &memory.Query{Limit: 5})
 ```
 
-La busqueda vectorial usa un VP-Tree (arbol Vantage Point) automatico
-cuando hay embeddings. El tree se cachea y reconstruye en cada mutacion.
-Para N>1000, el VP-Tree reduce el tiempo de busqueda de O(N×D) a
-O(log N×D). Ver [VECTOR_SEARCH.md](VECTOR_SEARCH.md) para detalles.
+Vector search uses an automatic VP-Tree (Vantage Point Tree)
+when embeddings are available. The tree is cached and rebuilt on each mutation.
+For N>1000, the VP-Tree reduces search time from O(N×D) to
+O(log N×D). See [VECTOR_SEARCH.md](VECTOR_SEARCH.md) for details.
 
-## Server HTTP
+## HTTP Server
 
-Ver [SERVER.md](SERVER.md) para el server HTTP que expone el store via
-endpoints JSON, util para clientes Python, TypeScript y otros lenguajes.
+See [SERVER.md](SERVER.md) for the HTTP server that exposes the store via
+JSON endpoints, useful for Python, TypeScript and other language clients.
 
-## Notas de comportamiento
+## Behavior notes
 
-### Flush y metadata volatile
+### Flush and volatile metadata
 
-Los bumps de acceso (`Accessed`, `LastAccessed`) se marcan en memoria pero
-solo se persisten cuando `Flush()` es llamado. Si el proceso termina sin
-llamar `Flush`, estos cambios se pierden. Esto es intencional: el recall
-nunca falla por errores de disco.
+Access bumps (`Accessed`, `LastAccessed`) are marked in memory but
+only persisted when `Flush()` is called. If the process ends without
+calling `Flush`, these changes are lost. This is intentional: recall
+never fails due to disk errors.
 
-Para garantizar persistencia, llamar `Flush()` al final del turno o usar
+To ensure persistence, call `Flush()` at the end of the turn or use
 `defer store.Flush()`.
 
-### Un store por directorio por proceso
+### One store per directory per process
 
-No crear dos `MemoryStore` apuntando al mismo directorio dentro de un
-mismo proceso. Cada store tiene su propio mutex; dos stores = dos mutexes
-independientes que contendran por el lockfile (timeout a 10s).
+Do not create two `MemoryStore` instances pointing to the same directory within
+the same process. Each store has its own mutex; two stores = two independent
+mutexes that will contend for the lockfile (timeout at 10s).
 
-### TTL y expiracion
+### TTL and expiration
 
-Las capsulas con TTL expirado no aparecen en `Recall` pero siguen en el
-store. `Consolidate` no las elimina. Para limpiar, usar `Forget` manual
-o configurar un TTL generoso.
+Capsules with expired TTL do not appear in `Recall` but remain in the
+store. `Consolidate` does not remove them. To clean up, use `Forget` manually
+or configure a generous TTL.
 
-### Campos sanitizados
+### Sanitized fields
 
-Los campos `File` y `PathScope` se almacenan tal cual. El consumidor es
-responsable de validarlos si los usa para abrir archivos. No confiar en
-estos campos como rutas seguras.
+The `File` and `PathScope` fields are stored as-is. The consumer is
+responsible for validating them if used to open files. Do not trust
+these fields as safe paths.
 
-## Mas informacion
+## Further reading
 
-- [API.md](API.md) — Referencia completa de todos los tipos y funciones
-- [TOOLS.md](TOOLS.md) — Tabla de tools y parametros
-- [ARCHITECTURE.md](ARCHITECTURE.md) — Arquitectura interna
+- [API.md](API.md) — Complete reference of all types and functions
+- [TOOLS.md](TOOLS.md) — Tools and parameters table
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Internal architecture

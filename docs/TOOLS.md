@@ -1,32 +1,32 @@
-# Tools registrables
+# Registrable Tools
 
-Tools que exponen las operaciones de memoria y ledger para integracion
-con agentes IA. Cada tool recibe JSON de argumentos y devuelve texto.
+Tools that expose memory and ledger operations for integration
+with AI agents. Each tool receives JSON arguments and returns text.
 
-## Tools de memoria (11)
+## Memory Tools (11)
 
-| Tool | Parametros | Descripcion |
+| Tool | Parameters | Description |
 |------|-----------|-------------|
-| `memory_remember` | `key`, `category`, `content`, `tags[]`, `priority`, `ttl`, `origin`, `path_scope` | Crea o fusiona una capsula. |
-| `memory_recall` | `q`, `category`, `tags[]`, `path_scope`, `graph`, `hops`, `rrf`, `limit` | Busqueda hibrida. |
-| `memory_suggest` | `context`, `limit` | Sugerencias sobre un contexto. |
-| `memory_stats` | `format` (`json`/`text`), `health` (bool) | Estadisticas (+ health check). |
-| `memory_forget` | `key`, `hard` (bool) | Olvida (soft/hard). Soft establece `SupersededOn`. |
-| `memory_resolve` | `key` | Restaura una capsula soft-deleted. |
-| `memory_archive` | `older_than` (`24h`/`7d`/`30d`) | Archiva por antiguedad. |
-| `memory_pin` | `key`, `priority` | Fija prioridad (0-5). |
-| `memory_backup` | — | Backup a `backups/`. |
-| `memory_consolidate` | — | Merge de casi-duplicados por clave y Jaccard. |
-| `context_brief` | `limit` | Resumen contextual (categorias, recientes, sugerencias). |
+| `memory_remember` | `key`, `category`, `content`, `tags[]`, `priority`, `ttl`, `origin`, `path_scope` | Creates or merges a capsule. |
+| `memory_recall` | `q`, `category`, `tags[]`, `path_scope`, `graph`, `hops`, `rrf`, `limit` | Hybrid search. |
+| `memory_suggest` | `context`, `limit` | Suggestions on a context. |
+| `memory_stats` | `format` (`json`/`text`), `health` (bool) | Statistics (+ health check). |
+| `memory_forget` | `key`, `hard` (bool) | Forgets (soft/hard). Soft sets `SupersededOn`. |
+| `memory_resolve` | `key` | Restores a soft-deleted capsule. |
+| `memory_archive` | `older_than` (`24h`/`7d`/`30d`) | Archives by age. |
+| `memory_pin` | `key`, `priority` | Sets priority (0-5). |
+| `memory_backup` | — | Backup to `backups/`. |
+| `memory_consolidate` | — | Merges near-duplicates by key and Jaccard. |
+| `context_brief` | `limit` | Contextual summary (categories, recent, suggestions). |
 
-## Tools de ledger (2)
+## Ledger Tools (2)
 
-| Tool | Parametros | Descripcion |
+| Tool | Parameters | Description |
 |------|-----------|-------------|
-| `ledger_tail` | `n`, `type`, `history` | Ultimos n eventos (por tipo, opcional historia). |
-| `ledger_log` | `action`, `detail` | Registra un milestone arbitrario. |
+| `ledger_tail` | `n`, `type`, `history` | Last n events (by type, optional history). |
+| `ledger_log` | `action`, `detail` | Records an arbitrary milestone. |
 
-## Registro
+## Registration
 
 ```go
 import (
@@ -48,20 +48,20 @@ fmt.Println("tools:", reg.Count()) // 13
 
 ## LedgerHook
 
-Observa la ejecucion de tools y registra sucesos en el ledger:
+Observes tool execution and records events in the ledger:
 
 ```go
 hook := tools.NewLedgerHook(ledger)
 hook.StartSession("mi-agente")
 defer hook.EndSession()
 
-// Interponer en un EventSink
+// Intercept into an EventSink
 sink := hook.Wrap(originalSink)
 ```
 
-El writer es asincrono (cola interna). `Close()` drena y cierra.
+The writer is asynchronous (internal queue). `Close()` drains and closes.
 
-## Mas informacion
+## More Information
 
-- [ADVANCED.md](ADVANCED.md) — Integracion avanzada
-- [API.md](API.md) — Referencia completa de `pkg/tools`
+- [ADVANCED.md](ADVANCED.md) — Advanced integration
+- [API.md](API.md) — Complete reference for `pkg/tools`

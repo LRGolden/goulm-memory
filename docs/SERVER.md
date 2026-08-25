@@ -1,42 +1,42 @@
-# Server HTTP
+# HTTP Server
 
-goulm-memory incluye un HTTP server minimal que expone las operaciones
-esenciales del store via endpoints JSON. Diseñado para que cualquier
-lenguaje (Python, TypeScript, Ruby, shell) pueda hablar con el store.
+goulm-memory includes a minimal HTTP server that exposes the essential
+store operations via JSON endpoints. Designed so that any language
+(Python, TypeScript, Ruby, shell) can talk to the store.
 
-## Levantar el server
+## Starting the server
 
 ```bash
 go run ./cmd/serve                          # default :8080
 go run ./cmd/serve -addr :9090 -dir /path   # custom
-go run ./cmd/serve -api-key "mi-clave"      # con autenticacion
+go run ./cmd/serve -api-key "my-key"      # with authentication
 ```
 
 ### Flags
 
-| Flag | Default | Descripcion |
+| Flag | Default | Description |
 |------|---------|-------------|
-| `-addr` | `:8080` | Direccion del servidor (host:port) |
-| `-dir` | `~/.goulm-memory/<proyecto>` | Directorio de persistencia |
-| `-cors` | `http://localhost:*` | Origen CORS permitido (`*` para todos) |
-| `-api-key` | (sin auth) | API key para autenticacion. Tambien: `GOULM_API_KEY` |
+| `-addr` | `:8080` | Server address (host:port) |
+| `-dir` | `~/.goulm-memory/<project>` | Persistence directory |
+| `-cors` | `http://localhost:*` | Allowed CORS origin (`*` for all) |
+| `-api-key` | (no auth) | API key for authentication. Also: `GOULM_API_KEY` |
 
-## Autenticacion
+## Authentication
 
-Cuando se configura `-api-key` o `GOULM_API_KEY`, todos los endpoints
-(excepto `/healthz`) requieren la key en el header:
+When `-api-key` or `GOULM_API_KEY` is configured, all endpoints
+(except `/healthz`) require the key in the header:
 
 ```bash
-# Opcion 1: X-API-Key
-curl -H "X-API-Key: mi-clave" http://localhost:8080/api/v1/stats
+# Option 1: X-API-Key
+curl -H "X-API-Key: my-key" http://localhost:8080/api/v1/stats
 
-# Opcion 2: Authorization Bearer
-curl -H "Authorization: Bearer mi-clave" http://localhost:8080/api/v1/stats
+# Option 2: Authorization Bearer
+curl -H "Authorization: Bearer my-key" http://localhost:8080/api/v1/stats
 ```
 
-Si no se configura key, la auth esta deshabilitada (backward compatible).
+If no key is configured, authentication is disabled (backward compatible).
 
-El endpoint `/healthz` siempre funciona sin auth (liveness check).
+The `/healthz` endpoint always works without auth (liveness check).
 
 ## Endpoints
 
@@ -51,8 +51,8 @@ GET /healthz → {"status":"ok"}
 ```bash
 curl -X POST http://localhost:8080/api/v1/remember \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: mi-clave" \
-  -d '{"key":"auth-jwt","category":"decision","content":"Usar JWT para auth","tags":["auth"]}'
+  -H "X-API-Key: my-key" \
+  -d '{"key":"auth-jwt","category":"decision","content":"Use JWT for auth","tags":["auth"]}'
 ```
 
 ### Recall
@@ -60,7 +60,7 @@ curl -X POST http://localhost:8080/api/v1/remember \
 ```bash
 curl -X POST http://localhost:8080/api/v1/recall \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: mi-clave" \
+  -H "X-API-Key: my-key" \
   -d '{"q":"auth","limit":5}'
 ```
 
@@ -69,20 +69,20 @@ curl -X POST http://localhost:8080/api/v1/recall \
 ```bash
 curl -X POST http://localhost:8080/api/v1/suggest \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: mi-clave" \
-  -d '{"context":"estamos hablando de login","limit":3}'
+  -H "X-API-Key: my-key" \
+  -d '{"context":"we are talking about login","limit":3}'
 ```
 
 ### Stats
 
 ```bash
-curl -H "X-API-Key: mi-clave" http://localhost:8080/api/v1/stats
+curl -H "X-API-Key: my-key" http://localhost:8080/api/v1/stats
 ```
 
 ### Health
 
 ```bash
-curl -H "X-API-Key: mi-clave" http://localhost:8080/api/v1/health
+curl -H "X-API-Key: my-key" http://localhost:8080/api/v1/health
 ```
 
 ### Forget
@@ -90,7 +90,7 @@ curl -H "X-API-Key: mi-clave" http://localhost:8080/api/v1/health
 ```bash
 curl -X POST http://localhost:8080/api/v1/forget \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: mi-clave" \
+  -H "X-API-Key: my-key" \
   -d '{"key":"auth-jwt","hard":false}'
 ```
 
@@ -99,7 +99,7 @@ curl -X POST http://localhost:8080/api/v1/forget \
 ```bash
 curl -X POST http://localhost:8080/api/v1/resolve \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: mi-clave" \
+  -H "X-API-Key: my-key" \
   -d '{"key":"auth-jwt"}'
 ```
 
@@ -108,7 +108,7 @@ curl -X POST http://localhost:8080/api/v1/resolve \
 ```bash
 curl -X POST http://localhost:8080/api/v1/pin \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: mi-clave" \
+  -H "X-API-Key: my-key" \
   -d '{"key":"auth-jwt","priority":5}'
 ```
 
@@ -116,85 +116,85 @@ curl -X POST http://localhost:8080/api/v1/pin \
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/backup \
-  -H "X-API-Key: mi-clave"
+  -H "X-API-Key: my-key"
 ```
 
 ### Archive
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/archive \
-  -H "X-API-Key: mi-clave"
+  -H "X-API-Key: my-key"
 ```
 
 ### Consolidate
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/consolidate \
-  -H "X-API-Key: mi-clave"
+  -H "X-API-Key: my-key"
 ```
 
 ### List capsules
 
 ```bash
-curl -H "X-API-Key: mi-clave" http://localhost:8080/api/v1/capsules
+curl -H "X-API-Key: my-key" http://localhost:8080/api/v1/capsules
 ```
 
-## Respuesta
+## Response
 
-Todos los endpoints devuelven JSON:
+All endpoints return JSON:
 
 ```json
 {"result": "..."}
 ```
 
-En caso de error:
+In case of error:
 
 ```json
-{"error": "descripcion del error"}
+{"error": "error description"}
 ```
 
-## Ejemplo: Python
+## Example: Python
 
 ```python
 import requests
 
 BASE = "http://localhost:8080"
-HEADERS = {"X-API-Key": "mi-clave"}
+HEADERS = {"X-API-Key": "my-key"}
 
-# Recordar
+# Remember
 requests.post(f"{BASE}/api/v1/remember", headers=HEADERS, json={
     "key": "auth-jwt",
     "category": "decision",
-    "content": "Usar JWT para auth"
+    "content": "Use JWT for auth"
 })
 
-# Buscar
+# Search
 resp = requests.post(f"{BASE}/api/v1/recall", headers=HEADERS, json={"q": "auth", "limit": 5})
 print(resp.json()["result"])
 
-# Estado
+# Stats
 resp = requests.get(f"{BASE}/api/v1/stats", headers=HEADERS)
 print(resp.json()["result"])
 ```
 
-## Ejemplo: TypeScript
+## Example: TypeScript
 
 ```typescript
 const BASE = "http://localhost:8080";
-const HEADERS = { "Content-Type": "application/json", "X-API-Key": "mi-clave" };
+const HEADERS = { "Content-Type": "application/json", "X-API-Key": "my-key" };
 
-// Recordar
+// Remember
 await fetch(`${BASE}/api/v1/remember`, {
   method: "POST",
   headers: HEADERS,
   body: JSON.stringify({
     key: "auth-jwt",
     category: "decision",
-    content: "Usar JWT para auth"
+    content: "Use JWT for auth"
   })
 });
 
-// Buscar
+// Search
 const resp = await fetch(`${BASE}/api/v1/recall`, {
   method: "POST",
   headers: HEADERS,
@@ -206,11 +206,11 @@ console.log(result);
 
 ## CORS
 
-El server incluye headers CORS basicos (`Access-Control-Allow-Origin: *`).
-Para produccion, configura un reverse proxy (nginx, caddy) con CORS
-especificos.
+The server includes basic CORS headers (`Access-Control-Allow-Origin: *`).
+For production, configure a reverse proxy (nginx, caddy) with specific
+CORS settings.
 
-## Mas informacion
+## More information
 
-- [QUICKSTART.md](QUICKSTART.md) — Primeros pasos
-- [ADVANCED.md](ADVANCED.md) — Integracion avanzada
+- [QUICKSTART.md](QUICKSTART.md) — Getting started
+- [ADVANCED.md](ADVANCED.md) — Advanced integration

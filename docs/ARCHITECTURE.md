@@ -1,160 +1,160 @@
-# Arquitectura
+# Architecture
 
-Vista general de cómo está construido `goulm-memory`, qué piezas lo componen y
-cómo fluyen los datos. Para la referencia de la API, ver
-[`API.md`](API.md); para los formatos de archivo, [`FORMATS.md`](FORMATS.md).
+Overview of how `goulm-memory` is built, what components make it up, and
+how data flows. For the API reference, see
+[`API.md`](API.md); for file formats, [`FORMATS.md`](FORMATS.md).
 
-## Diagrama de paquetes
+## Package diagram
 
 ```
- cmd/demo/        CLI de demostración
-    │  cablea store + tracker + ledger + Registry + LedgerHook
+ cmd/demo/        Demo CLI
+    │  wires store + tracker + ledger + Registry + LedgerHook
     ▼
- pkg/tools/       Capa de herramientas adaptada a un Registry standalone
+ pkg/tools/       Tool layer adapted to a standalone Registry
     │  memory_tools.go (11 tools)  ledger_tools.go (2 tools)
     │  ledger_hook.go  tool.go  types.go  events.go
     ▼
- pkg/memory/      Núcleo del store (100% stdlib, sin dependencias)
-    ├─ store.go        MemoryStore: carga/persistencia, lock, atomic-write
+ pkg/memory/      Core of the store (100% stdlib, no dependencies)
+    ├─ store.go        MemoryStore: load/persistence, lock, atomic-write
     ├─ memory.go       Remember / Recall / SmartRecall / Suggest / ListActive
-    ├─ capsule.go      Modelo de cápsula + validación + TTL + visibilidad
-    ├─ ranking.go      Pipeline de búsqueda: BM25, match, grafo, RRF, Render
+    ├─ capsule.go      Capsule model + validation + TTL + visibility
+    ├─ ranking.go      Search pipeline: BM25, match, graph, RRF, Render
     ├─ scoring.go      QualityScore / Importance
-    ├─ graph.go        Grafo de enlaces: BuildGraph, Centrality, EgoExpand
-    ├─ sessions.go     SessionTracker: heartbeats, conflictos, archivos por sesión
-    ├─ ledger.go       Ledger: registro JSON-lines + rotación + resumen
-    ├─ rotate.go       Compactación del ledger activo hacia archives/
-    ├─ summary.go      Agregación del ledger por día/semana/mes
-    ├─ reflog.go       Lectura de reflog git (para detectar cambios de rama)
+    ├─ graph.go        Link graph: BuildGraph, Centrality, EgoExpand
+    ├─ sessions.go     SessionTracker: heartbeats, conflicts, files per session
+    ├─ ledger.go       Ledger: JSON-lines registry + rotation + summary
+    ├─ rotate.go       Compaction of active ledger into archives/
+    ├─ summary.go      Ledger aggregation by day/week/month
+    ├─ reflog.go       Git reflog reading (to detect branch changes)
     ├─ gitutil.go      CurrentBranch, HasGitDir, ProjectID
-    ├─ primer.go       Primer, Stats, Diff, Backup + renderizadores
+    ├─ primer.go       Primer, Stats, Diff, Backup + renderers
     ├─ merge.go        Consolidate / MergeCapsules / Jaccard
     ├─ health.go       Health(cwd) + RenderHealth
-    ├─ tags.go         InferTags + ExtractProjectDeps (vocabulario)
-    ├─ ambar.go        Formato Ámbar (texto plano) + Format
-    ├─ scoring.go / ranking.go / ... (detalle abajo)
-    └─ pidalive_*.go   Detección de PID vivo (Windows/Unix)
+    ├─ tags.go         InferTags + ExtractProjectDeps (vocabulary)
+    ├─ ambar.go        Amber format (plain text) + Format
+    ├─ scoring.go / ranking.go / ... (details below)
+    └─ pidalive_*.go   Live PID detection (Windows/Unix)
 ```
 
-## La cápsula (unidad de memoria)
+## The capsule (memory unit)
 
-Toda la memoria son **cápsulas** (`Capsule`), con campos:
+All memory consists of **capsules** (`Capsule`), with the following fields:
 
-| Campo | Descripción |
+| Field | Description |
 |-------|-------------|
-| `ID` | Identificador único (4 bytes aleatorios, hex). |
+| `ID` | Unique identifier (4 random bytes, hex). |
 | `Category` | `decision`, `pattern`, `bug`, `knowledge`. |
-| `Key` | Clave corta y estable para identificar/colisionar. |
-| `Content` | Cuerpo de la memoria (texto). |
-| `File` | Archivo del proyecto asociado (opcional). |
-| `Tags` | Etiquetas (búsqueda por filtro AND). |
-| `Date` | Fecha de creación `YYYY-MM-DD` (ISO). |
-| `TTL` | Caducidad: `30d` (relativo) o `YYYY-MM-DD` (absoluto). |
-| `Accessed` | Contador de accesos (para recencia/frecuencia). |
-| `Links` | Claves enlazadas (grafo). |
-| `Quality` | Calidad [0-1] calculada (ver scoring). |
-| `Confidence` | Confianza según origen. |
-| `LastAccessed` | Último acceso ISO (si alguno). |
-| `Priority` | 0-5; 1-5 eleva la cápsula por encima del BM25 puro. |
-| `PathScope` | Glob de ámbito de rutas (filtro de sesión). |
+| `Key` | Short, stable key for identification/collision. |
+| `Content` | Body of the memory (text). |
+| `File` | Associated project file (optional). |
+| `Tags` | Labels (AND filter search). |
+| `Date` | Creation date `YYYY-MM-DD` (ISO). |
+| `TTL` | Expiration: `30d` (relative) or `YYYY-MM-DD` (absolute). |
+| `Accessed` | Access counter (for recency/frequency). |
+| `Links` | Linked keys (graph). |
+| `Quality` | Calculated quality [0-1] (see scoring). |
+| `Confidence` | Confidence based on origin. |
+| `LastAccessed` | Last access ISO (if any). |
+| `Priority` | 0-5; 1-5 boosts the capsule above pure BM25. |
+| `PathScope` | Path scope glob (session filter). |
 | `Origin` | `human`, `agent`, `inferred`. |
 | `Status` | `active`, `obsolete`. |
-| `SupersededOn` | Fecha en que fue superada (soft-delete). |
+| `SupersededOn` | Date when it was superseded (soft-delete). |
 
-**Origen → confianza** (`ConfidenceFor`): `human` = 1.0, `agent` = 0.8,
+**Origin → confidence** (`ConfidenceFor`): `human` = 1.0, `agent` = 0.8,
 `inferred` = 0.6.
 
-**Ciclo de vida**:
+**Lifecycle**:
 
-1. `Remember` crea una cápsula nueva o **fusiona** con una existente de la
-   misma clave (ver `MergeCapsules` en merge.go).
-2. La cápsula es visible mientras `Status == active`, no está caducada
-   (`TTL`) y, en consultas con vista temporal, su `Date` no supera el `asOf`.
-3. `Forget(key, hard=false)` la marca `obsolete` (soft); `hard=true` la
-   elimina del store.
-4. `Resolve(key)` la restaura a `active` y limpia `SupersededOn` (revierte `Forget`).
-5. `ArchiveOld` mueve a `archive` las que superan una antigüedad.
-6. El acceso a una cápsula vía `Rank`/`Recall` incrementa `Accessed` y
-   refresca `LastAccessed` (bump); los bumps pendientes se persisten con
-   `Flush` o en la siguiente escritura.
+1. `Remember` creates a new capsule or **merges** with an existing one of the
+   same key (see `MergeCapsules` in merge.go).
+2. The capsule is visible while `Status == active`, not expired
+   (`TTL`) and, in queries with a temporal view, its `Date` does not exceed `asOf`.
+3. `Forget(key, hard=false)` marks it `obsolete` (soft); `hard=true` removes
+   it from the store.
+4. `Resolve(key)` restores it to `active` and clears `SupersededOn` (reverts `Forget`).
+5. `ArchiveOld` moves to `archive` those that exceed an age threshold.
+6. Accessing a capsule via `Rank`/`Recall` increments `Accessed` and
+   refreshes `LastAccessed` (bump); pending bumps are persisted with
+   `Flush` or on the next write.
 
-## Persistencia y concurrencia
+## Persistence and concurrency
 
-- `NewStore(Config)` abre (o crea) el directorio con la estructura de la
-  tabla `FileSet`: `memory.<ext>`, `archive.<ext>`, `config.json`,
+- `NewStore(Config)` opens (or creates) the directory with the structure of the
+  `FileSet` table: `memory.<ext>`, `archive.<ext>`, `config.json`,
   `memory.lock`, `backups/`, `sessions/`.
-- Carga en memoria: cápsulas activas en `s.entries` (indexadas por ID y por
-  clave) y archivadas en `s.archive`.
-- **Lock de archivo** (`memory.lock`): los escritores escriben
-  `pid + timestamp` y bloquean el archivo durante la persistencia; si el lock
-  está ocupado por un PID muerto o stale (15 s) se toma (robo). Espera máx.
-  10 s. En Windows las `sharing violation` se tratan como lock ocupado.
-- **Escrituras atómicas**: temporal + `rename`. Permisos `0600`.
-- Los lectores comparan la `fileStamp` (mtime+size) del archivo de memoria
-  contra la última cargada: si otro proceso escribió, recargan
-  (`loadFile`/`adoptForeignLocked`). Esto permite **múltiples procesos**
-  compartiendo el mismo directorio de memoria.
-- El `vocab` (proyecto) y el `config.json` se reescriben con `writeMetaLocked`.
-- Formato: `json` (por defecto) o `ambar`; `SetFormat` migra los archivos.
+- Loads into memory: active capsules in `s.entries` (indexed by ID and by
+  key) and archived in `s.archive`.
+- **File lock** (`memory.lock`): writers write
+  `pid + timestamp` and block the file during persistence; if the lock
+  is held by a dead or stale PID (15 s) it is taken (stolen). Max wait
+  10 s. On Windows, `sharing violation` errors are treated as an occupied lock.
+- **Atomic writes**: temp + `rename`. Permissions `0600`.
+- Readers compare the `fileStamp` (mtime+size) of the memory file
+  against the last loaded: if another process wrote, they reload
+  (`loadFile`/`adoptForeignLocked`). This allows **multiple processes**
+  sharing the same memory directory.
+- The `vocab` (project) and `config.json` are rewritten with `writeMetaLocked`.
+- Format: `json` (default) or `ambar`; `SetFormat` migrates files.
 
-## Pipeline de búsqueda (`Rank`)
+## Search pipeline (`Rank`)
 
 ```
- filtro       -> match        -> (grafo)   -> puntuación -> orden -> límite
- visible      -> tokens       -> ego       -> BM25 +    -> RRF o  -> top N
- (status,     -> keywords     -> subgraph  -> match     -> linear
-  ttl, asOf,     + tags AND     + seeds    -> recencia  + bumped
-  dates,        + path glob              + frecuencia
+ filter       -> match        -> (graph)    -> scoring     -> order     -> limit
+ visible      -> tokens       -> ego       -> BM25 +      -> RRF or    -> top N
+ (status,     -> keywords     -> subgraph  -> match       -> linear
+  ttl, asOf,    + tags AND     + seeds    -> recency     + bumped
+  dates,        + path glob              + frequency
   pathscope)
 ```
 
-Pasos:
+Steps:
 
-1. **Visibilidad**: solo cápsulas activas, no caducadas y dentro de la vista
-   temporal (`AsOf`) y filtros de fecha.
-2. **Match**: si hay query, `matchQuery` (BM25 no filtra; el filtrado previo
-   usa tokens + keywords con normalización de acentos y `splitCamel`).
-   `matchTags` aplica filtro AND de etiquetas; `pathMatch` aplica el glob de
-   `PathScope` contra `SessionFiles`.
-3. **Grafo** (`Graph: true`): `EgoExpand` sobre las seeds para incluir vecinos
-   a `Hops` (1 o 2) como candidatos marcados con `Dist`.
-4. **Puntuación**: por defecto se usa **combinación lineal** de BM25 +
-   centralidad + importancia; con `RRF: true` se fusionan por rangos los
-   rankings de BM25, match de keywords y frecuencia/recencia. Las cápsulas con
-   `Priority > 0` se mueven al frente. Los seed (coincidencia directa)
-   conservan `IsSeed: true`.
-5. **Bump**: los resultados devueltos incrementan su contador de acceso.
+1. **Visibility**: only active, non-expired capsules within the temporal
+   view (`AsOf`) and date filters.
+2. **Match**: if there is a query, `matchQuery` (BM25 does not filter; prior
+   filtering uses tokens + keywords with accent normalization and `splitCamel`).
+   `matchTags` applies AND label filtering; `pathMatch` applies the
+   `PathScope` glob against `SessionFiles`.
+3. **Graph** (`Graph: true`): `EgoExpand` on seeds to include neighbors
+   at `Hops` (1 or 2) as candidates marked with `Dist`.
+4. **Scoring**: by default uses a **linear combination** of BM25 +
+   centrality + importance; with `RRF: true` rankings of BM25,
+   keyword match, and frequency/recency are merged by rank. Capsules with
+   `Priority > 0` are moved to the front. Seeds (direct match)
+   retain `IsSeed: true`.
+5. **Bump**: returned results increment their access counter.
 
-Funciones relevantes: `BM25Scores` (k1=1.5, b=0.75), `rrfScore`, `rankOf`,
-`Render(rs, budget)` con presupuestos `tiny`/`normal`/`deep`.
+Relevant functions: `BM25Scores` (k1=1.5, b=0.75), `rrfScore`, `rankOf`,
+`Render(rs, budget)` with budgets `tiny`/`normal`/`deep`.
 
 ### Scoring (`scoring.go`)
 
-- `QualityScore(c, now)`: mezcla ponderada de
-  - longitud del contenido (0.30),
-  - tags presentes (0.30),
-  - enlaces (0.15),
-  - frecuencia de acceso (0.10, tope),
-  - recencia (0.10),
-  - especificidad/origen (0.10),
-  - con un **cap de estancamiento** (0.20) si no se ha accedido en 90 días.
-- `Importance(c, now) = recencia*0.6 + frecuencia*0.4` (ambas normalizadas a
+- `QualityScore(c, now)`: weighted blend of
+  - content length (0.30),
+  - tags present (0.30),
+  - links (0.15),
+  - access frequency (0.10, capped),
+  - recency (0.10),
+  - specificity/origin (0.10),
+  - with a **stagnation cap** (0.20) if not accessed in 90 days.
+- `Importance(c, now) = recency*0.6 + frequency*0.4` (both normalized to
   [0,1]).
 
-## Grafo de enlaces (`graph.go`)
+## Link graph (`graph.go`)
 
-- `BuildGraph` conecta cápsulas cuyos `Links` apuntan a otras claves presentes,
-  y además enlaza por **tags compartidos** (arista con peso `sharedTagCount`).
-- `LinkKey` normaliza una clave para usarla como nodo.
-- `Centrality` = grado normalizado; se cachea por día (`cachedCentral`) y se
-  invalida con `bumpGraph` al mutar el store.
-- `EgoExpand(seeds, hops, visible)` recorre BFS hasta `hops` saltos y devuelve
-  `map[key]dist` para el paso de expansión del pipeline.
-- `ShortestPath(a, b)` (BFS) para responder "cómo se relacionan dos memorias".
+- `BuildGraph` connects capsules whose `Links` point to other keys present,
+  and also links by **shared tags** (edge weight `sharedTagCount`).
+- `LinkKey` normalizes a key for use as a node.
+- `Centrality` = normalized degree; cached per day (`cachedCentral`) and
+  invalidated with `bumpGraph` on store mutation.
+- `EgoExpand(seeds, hops, visible)` performs BFS up to `hops` hops and returns
+  `map[key]dist` for the pipeline expansion step.
+- `ShortestPath(a, b)` (BFS) to answer "how are two memories related".
 
-## Sesiones (`sessions.go`)
+## Sessions (`sessions.go`)
 
-El `SessionTracker` mantiene un fichero de **heartbeat por sesión** en
+The `SessionTracker` maintains a **heartbeat file per session** in
 `<dir>/sessions/<id>.json`:
 
 ```json
@@ -162,61 +162,61 @@ El `SessionTracker` mantiene un fichero de **heartbeat por sesión** en
   "started_at": "...", "last_seen": "...", "files": {"path": "iso"}, "ended": false }
 ```
 
-- `Touch(file)` / `Heartbeat(file, ended)` actualizan el estado (tope de 200
-  archivos por sesión; a partir de ahí se podan los más antiguos).
-- `ActiveSessions()` lista las sesiones vivas (TTL de 10 min: si
-  `last_seen` es más viejo y el PID está muerto, se considera terminada).
-- `Conflicts()` detecta **archivos tocados por dos o más sesiones vivas**
-  (posible edición concurrente).
-- `SessionFiles()` devuelve el conjunto de archivos tocados por *esta* sesión,
-  que el pipeline de búsqueda usa para filtrar por `PathScope`.
-- `Prune()` elimina heartbeats huérfanos.
+- `Touch(file)` / `Heartbeat(file, ended)` update the state (cap of 200
+  files per session; after that the oldest are pruned).
+- `ActiveSessions()` lists live sessions (10 min TTL: if
+  `last_seen` is older and the PID is dead, it is considered ended).
+- `Conflicts()` detects **files touched by two or more live sessions**
+  (possible concurrent editing).
+- `SessionFiles()` returns the set of files touched by *this* session,
+  which the search pipeline uses to filter by `PathScope`.
+- `Prune()` removes orphaned heartbeats.
 
 ## Ledger (`ledger.go`, `rotate.go`, `summary.go`)
 
-El ledger es un registro de actividad **JSON-lines** (v2, `V:2`) con rotación
-automática:
+The ledger is a **JSON-lines** activity log (v2, `V:2`) with automatic
+rotation:
 
-- `NewLedger(cwd, ...)` localiza la raíz del proyecto (`DetectRoot`, hasta 10
-  niveles hacia arriba buscando `.git`/`go.mod`/etc.) y elige
-  `~/.goulm/ledger/<Proyecto>/` salvo que se use `WithHome` para aislarlo.
+- `NewLedger(cwd, ...)` locates the project root (`DetectRoot`, up to 10
+  levels up searching for `.git`/`go.mod`/etc.) and chooses
+  `~/.goulm/ledger/<Project>/` unless `WithHome` is used to isolate it.
 - `Append*`: `AppendTool`, `AppendEdit`, `AppendCommit`, `AppendError`,
   `AppendMemory`, `AppendSessionStart/End`, `AppendMilestone`,
-  `AppendApproval`. Cada evento lleva `TS`, `Type`, `Action`, `Session`,
-  y campos opcionales (`Path`, `Detail`, `Hash`, `Risk`, `Status`,
+  `AppendApproval`. Each event carries `TS`, `Type`, `Action`, `Session`,
+  and optional fields (`Path`, `Detail`, `Hash`, `Risk`, `Status`,
   `Approved`, `Tokens`, `CostUSD`, `DurationMs`, `Turn`, `Test`).
-- **Rotación**: al escribir, si el archivo activo supera `Window` (200 eventos
-  por defecto) o 48 KiB, `CompactNow` mueve el exceso a
-  `archives/YYYY-MM.json` agrupado por mes.
-- `Tail(n, type, includeHistory)` devuelve los últimos n eventos (activo y,
-  opcionalmente, históricos). `Stats()` resume el estado.
-- `Summary()` agrega por día/semana/mes: commits, ediciones (archivos
-  únicos), errores, tests, memorias por categoría, milestones, coste y
-  duración; respeta `SummaryBudget`.
-- `Export(since, to)` devuelve el rango como texto.
-- Sanitización: `sanitizeDetail` enmascara secretos y corta a 300 caracteres.
-- Enmascarado por variables de entorno: `GOULM_LEDGER=off` deshabilita;
-  la sesión se obtiene de `GOULM_SESSION_ID` si está definida.
+- **Rotation**: on write, if the active file exceeds `Window` (200 events
+  by default) or 48 KiB, `CompactNow` moves the excess to
+  `archives/YYYY-MM.json` grouped by month.
+- `Tail(n, type, includeHistory)` returns the last n events (active and,
+  optionally, historical). `Stats()` summarizes the state.
+- `Summary()` aggregates by day/week/month: commits, edits (unique
+  files), errors, tests, memories by category, milestones, cost, and
+  duration; respects `SummaryBudget`.
+- `Export(since, to)` returns the range as text.
+- Sanitization: `sanitizeDetail` masks secrets and truncates to 300 characters.
+- Environment variable masking: `GOULM_LEDGER=off` disables;
+  the session is obtained from `GOULM_SESSION_ID` if defined.
 
-`LedgerHook` (en `pkg/tools`) es el puente entre las tools y el ledger:
-observa `OnToolStart`/`OnToolResult` (vía `EventSink` o envolviendo `Execute`)
-y registra `tool`/`approval`/`session`/`milestone` en un **writer asíncrono**
-con cola y drops contados (`Stats()`).
+`LedgerHook` (in `pkg/tools`) is the bridge between the tools and the ledger:
+it observes `OnToolStart`/`OnToolResult` (via `EventSink` or wrapping `Execute`)
+and logs `tool`/`approval`/`session`/`milestone` to an **async writer**
+with queue and counted drops (`Stats()`).
 
-## Capa de tools (`pkg/tools`)
+## Tool layer (`pkg/tools`)
 
-`Registry` es un registro plano con los mismos defaults que el agente de
-Goulm (timeout 30 s, categoría `inspect`, riesgo `low` o `high` según
-`RequiresApproval`). `RegisterMemoryTools` registra 11 tools de memoria y
-`RegisterLedgerTools` las 2 de ledger. Cada tool recibe `(ctx, input string)`
-y devuelve `(string, error)`, donde `input` es un JSON de argumentos. Ver
-`API.md` para los parámetros de cada tool.
+`Registry` is a flat registry with the same defaults as the Goulm agent
+(timeout 30 s, category `inspect`, risk `low` or `high` depending on
+`RequiresApproval`). `RegisterMemoryTools` registers 11 memory tools and
+`RegisterLedgerTools` the 2 ledger tools. Each tool receives `(ctx, input string)`
+and returns `(string, error)`, where `input` is a JSON of arguments. See
+`API.md` for each tool's parameters.
 
-## Flujo del demo (`cmd/demo`)
+## Demo flow (`cmd/demo`)
 
-1. Resuelve `cwd` y `-dir` (por defecto `~/.goulm-memory/<ProjectID>`).
-2. Abre el store (JSON), inyecta vocabulario del proyecto, abre un
-   `SessionTracker`, crea el ledger aislado y el `LedgerHook`.
-3. Registra las 13 tools en un `Registry`.
-4. Ejecuta el subcomando pedido a través del Registry (misma ruta que un
-   agente), con exit codes 0/1/2.
+1. Resolves `cwd` and `-dir` (default `~/.goulm-memory/<ProjectID>`).
+2. Opens the store (JSON), injects project vocabulary, opens a
+   `SessionTracker`, creates the isolated ledger and `LedgerHook`.
+3. Registers the 13 tools in a `Registry`.
+4. Runs the requested subcommand through the Registry (same path as an
+   agent), with exit codes 0/1/2.

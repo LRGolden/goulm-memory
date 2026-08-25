@@ -1,68 +1,68 @@
 # Vector Search
 
-goulm-memory usa embeddings para busqueda semantica. Este documento
-describe los metodos de busqueda vectorial implementados y por que.
+goulm-memory uses embeddings for semantic search. This document
+describes the vector search methods implemented and why.
 
-## Metodos evaluados
+## Evaluated methods
 
-| Metodo | Precision | Memoria extra | Build | Query | Go complexity |
+| Method | Accuracy | Extra memory | Build | Query | Go complexity |
 |---|---|---|---|---|---|
-| Brute-force | 100% | 0 | 0 | O(N×D) | Ninguna |
-| **VP-Tree** | ~95% | O(N) | O(N×log N) | O(log N×D) | Media |
-| KD-Tree | ~90% | O(N) | O(N×log N) | O(log N×D) | Media |
-| HNSW | ~98% | O(N×M) | O(N×log N) | O(log N×D) | Alta |
-| IVF-PQ | ~85% | O(N/k) | O(N×k) | O(k×D/q) | Alta |
+| Brute-force | 100% | 0 | 0 | O(N×D) | None |
+| **VP-Tree** | ~95% | O(N) | O(N×log N) | O(log N×D) | Medium |
+| KD-Tree | ~90% | O(N) | O(N×log N) | O(log N×D) | Medium |
+| HNSW | ~98% | O(N×M) | O(N×log N) | O(log N×D) | High |
+| IVF-PQ | ~85% | O(N/k) | O(N×k) | O(k×D/q) | High |
 
-- **D** = dimensionalidad (ej: 1536 para OpenAI ada-002)
-- **N** = numero de capsules
-- **M** = conexiones por nodo en HNSW (tipicamente 16)
-- **k** = numero de clusters en IVF
-- **q** = buckets por query en IVF
+- **D** = dimensionality (e.g., 1536 for OpenAI ada-002)
+- **N** = number of capsules
+- **M** = connections per node in HNSW (typically 16)
+- **k** = number of clusters in IVF
+- **q** = buckets per query in IVF
 
-## Metodo implementado: VP-Tree
+## Implemented method: VP-Tree
 
-### Que es
+### What is it
 
-Un arbol VP (Vantage Point) particiona el espacio vectorial usando
-puntos de referencia (pivots). Cada nodo divide el espacio en dos
-mitades: puntos mas cercanos al pivot (izquierda) y mas lejanos
-(derecha).
+A VP (Vantage Point) tree partitions the vector space using
+reference points (pivots). Each node divides the space into two
+halves: points closer to the pivot (left) and points farther away
+(right).
 
-### Por que VP-Tree
+### Why VP-Tree
 
-1. **Zero dependencias** — implementacion pura en Go, sin CGo
-2. **Precision aceptable** — ~95% para recall@10
-3. **Memoria** — O(N) adicional (arreglo de structs, no maps)
-4. **Build** — O(N×log N) amortizado, rebuild lazy
-5. **Query** — O(log N×D) con pruning por umbral
-6. **Simple** — ~200 lineas de codigo
+1. **Zero dependencies** — pure Go implementation, no CGo
+2. **Acceptable accuracy** — ~95% for recall@10
+3. **Memory** — O(N) additional (array of structs, not maps)
+4. **Build** — O(N×log N) amortized, lazy rebuild
+5. **Query** — O(log N×D) with threshold pruning
+6. **Simple** — ~200 lines of code
 
-### Por que NO los otros
+### Why NOT the others
 
-- **Brute-force**: Funciona para N<5000, pero O(N×D) es lento para N>10K
-- **KD-Tree**: Degradacion en dimensiones altas (>20 dim), mismo costo que VP-Tree
-- **HNSW**: Mejor precision (~98%), pero ~500 lineas con skip lists. Overkill para N<50K
-- **IVF-PQ**: Compresion cuantizada, perdida de precision. Solo para N>100K
+- **Brute-force**: Works for N<5000, but O(N×D) is slow for N>10K
+- **KD-Tree**: Degradation in high dimensions (>20 dim), same cost as VP-Tree
+- **HNSW**: Better accuracy (~98%), but ~500 lines with skip lists. Overkill for N<50K
+- **IVF-PQ**: Quantized compression, precision loss. Only for N>100K
 
-### Integracion
+### Integration
 
-El VP-Tree se construye automaticamente cuando:
-- Hay un `EmbeddingProvider` configurado
-- Hay capsules con embeddings pre-calculados
-- El primer Recall se ejecuta
+The VP-Tree is built automatically when:
+- There is a configured `EmbeddingProvider`
+- There are capsules with pre-computed embeddings
+- The first Recall is executed
 
-El tree se cachea y reconstruye cuando el store muta (Remember, Forget, etc).
+The tree is cached and reconstructed when the store mutates (Remember, Forget, etc.).
 
-### Uso externo
+### External usage
 
 ```go
 import "github.com/LRGolden/goulm-memory/pkg/memory"
 
-// Construir tree desde capsules
-caps := store.All() // o filtrar por visibilidad
+// Build tree from capsules
+caps := store.All() // or filter by visibility
 tree := memory.BuildVPTree(caps)
 
-// Buscar 5 nearest neighbors
+// Search for 5 nearest neighbors
 results := tree.Search(queryVector, 5, 0)
 
 for _, r := range results {
@@ -70,30 +70,30 @@ for _, r := range results {
 }
 ```
 
-### Limitaciones
+### Limitations
 
-- **Dimensiones altas** (>1024): Precision baja a ~80-85%
-- **Distribucion uniforme**: Peor rendimiento que clustering
-- **Updates**: Rebuild completo en cada mutacion (amortizado por cache)
+- **High dimensions** (>1024): Accuracy drops to ~80-85%
+- **Uniform distribution**: Worse performance than clustering
+- **Updates**: Full rebuild on each mutation (amortized by cache)
 
 ### Benchmarks
 
 ```bash
-# Ejecutar benchmarks de vector search
+# Run vector search benchmarks
 go test ./pkg/memory/ -run "^$" -bench "BenchmarkVectorScores" -benchmem
 
-# Ejecutar benchmark de Recall completo
+# Run full Recall benchmark
 go test ./pkg/memory/ -run "^$" -bench "BenchmarkRecall" -benchmem
 ```
 
-### Analisis de memoria
+### Memory analysis
 
-Para diagnostico de allocs en Recall:
+For alloc diagnostics in Recall:
 
 ```bash
-# Ejecutar benchmark con memprofile
+# Run benchmark with memprofile
 go test ./pkg/memory/ -run "^$" -bench "BenchmarkRecallProfile" -benchmem
 
-# Analizar profile
+# Analyze profile
 go tool pprof -alloc_objects -inuse_space memprofile.out
 ```
