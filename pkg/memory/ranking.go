@@ -425,11 +425,13 @@ func vowelStart(s string) bool {
 func matchQuery(c *Capsule, qTokens []string) bool {
 	text := c.FullText()
 	lower := strings.ToLower(text)
-	docTokens := tokenize(lower)
-	// Limitar a 50 tokens para Levenshtein: contenido largo se trunca
-	// para evitar O(N²) en fuzzy match.
-	if len(docTokens) > 50 {
-		docTokens = docTokens[:50]
+	// Usar tokens pre-computed si existen, fallback a tokenizar.
+	docTokens := c.Tokens
+	if len(docTokens) == 0 {
+		docTokens = tokenize(lower)
+		if len(docTokens) > maxBM25Tokens {
+			docTokens = docTokens[:maxBM25Tokens]
+		}
 	}
 	for _, qt := range qTokens {
 		if matchKeyword(lower, qt) {
@@ -450,6 +452,22 @@ func matchQuery(c *Capsule, qTokens []string) bool {
 }
 
 // levenshtein distancia de edición (implementación simple con dos filas).
+// Usa sync.Pool para reusar los buffers prev/cur entre llamadas.
+var (
+	levPrevPool = sync.Pool{
+		New: func() interface{} {
+			s := make([]int, 0, 64)
+			return &s
+		},
+	}
+	levCurPool = sync.Pool{
+		New: func() interface{} {
+			s := make([]int, 0, 64)
+			return &s
+		},
+	}
+)
+
 func levenshtein(a, b string) int {
 	ar, br := []rune(a), []rune(b)
 	if len(ar) == 0 {
@@ -458,8 +476,21 @@ func levenshtein(a, b string) int {
 	if len(br) == 0 {
 		return len(ar)
 	}
-	prev := make([]int, len(br)+1)
-	cur := make([]int, len(br)+1)
+
+	prevp := levPrevPool.Get().(*[]int)
+	curp := levCurPool.Get().(*[]int)
+	prev := (*prevp)[:0]
+	cur := (*curp)[:0]
+
+	// Expandir buffers si es necesario.
+	if cap(prev) < len(br)+1 {
+		prev = make([]int, len(br)+1)
+		cur = make([]int, len(br)+1)
+	} else {
+		prev = prev[:len(br)+1]
+		cur = cur[:len(br)+1]
+	}
+
 	for j := 0; j <= len(br); j++ {
 		prev[j] = j
 	}
@@ -474,7 +505,15 @@ func levenshtein(a, b string) int {
 		}
 		prev, cur = cur, prev
 	}
-	return prev[len(br)]
+	result := prev[len(br)]
+
+	// Devolver buffers al pool.
+	*prevp = prev
+	*curp = cur
+	levPrevPool.Put(prevp)
+	levCurPool.Put(curp)
+
+	return result
 }
 
 func min3(a, b, c int) int {

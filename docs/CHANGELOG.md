@@ -4,6 +4,19 @@ Historial de cambios de `goulm-memory`. Formato
 [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); el módulo sigue
 [SemVer](https://semver.org/).
 
+## [0.4.5] — 2026-08-24
+
+Optimizacion profunda de Recall: levenshtein con buffers reusables y
+matchQuery con tokens pre-computed.
+
+### Mejorado
+
+- **levenshtein buffers** (`pkg/memory/ranking.go`): sync.Pool para
+  `prev`/`cur` arrays. Elimina ~119K allocs por Recall con N=1000
+  (51% del total anterior).
+- **matchQuery tokens** (`pkg/memory/ranking.go`): usa `c.Tokens`
+  pre-computed en vez de re-tokenizar. Elimina ~1K allocs por Recall.
+
 ## [0.4.4] — 2026-08-23
 
 Optimizacion de memoria y performance en el pipeline de Recall.
@@ -338,6 +351,7 @@ Versión inicial. Extraído del subsistema de memoria de
 - Al trabajar dentro del repo de Goulm (que usa `go.work`), compilar/testear
   este módulo requiere `$env:GOWORK="off"`.
 
+[0.4.5]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.5
 [0.4.4]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.4
 [0.4.3]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.3
 [0.4.2]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.2
