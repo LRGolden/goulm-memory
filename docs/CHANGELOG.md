@@ -12,7 +12,8 @@ Fix critico de memoria en Recall + VP-Tree para vector search.
 
 - **BuildGraph O(N²) fix** (`pkg/memory/graph.go`): tags que aparecen
   en >50 cápsulas ya no crean edges sintéticos. Reduce Recall N=1000
-  de ~214MB a ~30MB. Links explícitos y refs [[clave]] no se afectan.
+  de ~214MB a ~4.3MB (-98%). Links explícitos y refs [[clave]] no se
+  afectan.
 
 ### Agregado
 

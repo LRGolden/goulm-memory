@@ -231,6 +231,11 @@ store.Remember(memory.RememberOptions{
 ranked, _ := store.Recall("query", &memory.Query{Limit: 5})
 ```
 
+La busqueda vectorial usa un VP-Tree (arbol Vantage Point) automatico
+cuando hay embeddings. El tree se cachea y reconstruye en cada mutacion.
+Para N>1000, el VP-Tree reduce el tiempo de busqueda de O(N×D) a
+O(log N×D). Ver [VECTOR_SEARCH.md](VECTOR_SEARCH.md) para detalles.
+
 ## Server HTTP
 
 Ver [SERVER.md](SERVER.md) para el server HTTP que expone el store via

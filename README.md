@@ -55,6 +55,7 @@ Ver [docs/QUICKSTART.md](docs/QUICKSTART.md) para guia paso a paso.
 | [TOOLS.md](docs/TOOLS.md) | Tabla de tools registrables |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Arquitectura interna y diseno |
 | [FORMATS.md](docs/FORMATS.md) | Formatos de persistencia (JSON y Ambar) |
+| [VECTOR_SEARCH.md](docs/VECTOR_SEARCH.md) | Metodos de busqueda vectorial (VP-Tree) |
 | [CHANGELOG.md](docs/CHANGELOG.md) | Historial de cambios |
 
 ## Estructura
@@ -69,6 +70,41 @@ cmd/demo/     # CLI de demostracion (15 subcomandos).
 cmd/serve/    # HTTP server para clientes multi-lenguaje.
 docs/         # Documentacion.
 ```
+
+## Performance
+
+Metricas de Recall con busqueda hibrida (BM25 + grafo + embeddings),
+medidas en `go test -benchmem`. Los valores de allocs/op y B/op son
+independientes del hardware y representan el costo real por operacion.
+
+| N capsules | allocs/op | B/op | Nota |
+|------------|-----------|------|------|
+| 10 | 281 | 40 KB | Default (Limit=6) |
+| 100 | 2,468 | 416 KB | Default |
+| 500 | 12,105 | 2.16 MB | Default |
+| 1000 | 24,171 | 4.3 MB | Default |
+
+**BuildGraph** con tags compartidos:
+
+| N capsules | allocs/op | B/op | Nota |
+|------------|-----------|------|------|
+| 100 | 239 | 49 KB | Tags >50 capsules skip edges |
+| 500 | 1,055 | 276 KB | Tags >50 capsules skip edges |
+
+**BM25Scores** (busqueda textual):
+
+| N capsules | allocs/op | B/op |
+|------------|-----------|------|
+| 100 | 618 | 96 KB |
+| 1000 | 6,029 | 998 KB |
+
+Para reproducir:
+```bash
+go test ./pkg/memory/ -run "^$" -bench "BenchmarkRecall" -benchmem
+```
+
+Ver [VECTOR_SEARCH.md](docs/VECTOR_SEARCH.md) para detalles del VP-Tree
+y metodos de busqueda vectorial.
 
 ## Licencia
 

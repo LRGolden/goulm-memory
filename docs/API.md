@@ -247,6 +247,26 @@ El campo `EmbeddingDim` en `Capsule` registra la dimension del provider al
 momento de almacenar.
 Ver [EMBEDDINGS.md](EMBEDDINGS.md) para guia completa.
 
+### VP-Tree (busqueda vectorial aproximada)
+
+```go
+type VPTree struct { /* interno */ }
+type SearchResult struct {
+    Key      string
+    Score    float64 // similitud coseno normalizada [0,1]
+    Distance float64 // distancia euclidiana al query
+}
+
+func BuildVPTree(capsules []*Capsule) *VPTree
+func (t *VPTree) Search(query []float64, k int, maxDist float64) []SearchResult
+func (t *VPTree) Len() int
+func (t *VPTree) Version() int
+```
+
+El VP-Tree se construye automaticamente cuando hay un `EmbeddingProvider`
+configurado y capsules con embeddings. Se cachea y reconstruye cuando el
+store muta. Ver [VECTOR_SEARCH.md](VECTOR_SEARCH.md) para detalles.
+
 ### Grafo
 
 ```go
