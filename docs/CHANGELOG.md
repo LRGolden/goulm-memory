@@ -4,6 +4,17 @@ Changelog history of `goulm-memory`. Format
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the module follows
 [SemVer](https://semver.org/).
 
+## [0.4.8] — 2026-08-31
+
+**BREAKING CHANGE**: Migration from `float64` to `float32` for all vector embeddings.
+
+This architectural shift reduces the RAM footprint of the vector database by exactly 50%. It is designed specifically to ensure stability on Edge AI hardware (e.g. Raspberry Pi 5, Smartphones) where the OS and the LLM models compete aggressively for memory.
+
+### Changed
+- **EmbeddingProvider interface** (`pkg/memory/embedding.go`): `Embed()` now returns `[]float32` instead of `[]float64`. Implementers must update their providers.
+- **Capsule struct** (`pkg/memory/capsule.go`): `Embedding` field is now `[]float32`. Existing JSON/Ambar data files will parse correctly and automatically adapt to 32-bits on read without corruption.
+- **VP-Tree mathematics** (`pkg/memory/vptree.go`): `Search` and distance functions now operate entirely in 32-bits to maximize cache hits and SIMD performance.
+
 ## [0.4.7] — 2026-08-31
 
 Industrial-grade optimization for vector search performance on edge devices.

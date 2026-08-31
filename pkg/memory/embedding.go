@@ -19,14 +19,14 @@ const DefaultEmbedTimeout = 5 * time.Second
 //
 //	type MiProvider struct{ apiKey string }
 //
-//	func (p *MiProvider) Embed(ctx context.Context, text string) ([]float64, error) {
+//	func (p *MiProvider) Embed(ctx context.Context, text string) ([]float32, error) {
 //	    // llamada a la API de embeddings, respetando ctx
 //	}
 //	func (p *MiProvider) Dimension() int { return 1536 }
 type EmbeddingProvider interface {
 	// Embed genera un vector de embeddings para el texto dado.
 	// El contexto puede cancelarse si el proveedor tarda demasiado.
-	Embed(ctx context.Context, text string) ([]float64, error)
+	Embed(ctx context.Context, text string) ([]float32, error)
 
 	// Dimension devuelve la dimensionalidad del vector.
 	Dimension() int
@@ -91,12 +91,12 @@ func vectorScoresVP(provider EmbeddingProvider, query string, tree *VPTree, docs
 
 // cosineSim calcula la similitud coseno entre dos vectores.
 // Utiliza loop unrolling para permitir vectorización SIMD por el compilador.
-func cosineSim(a, b []float64) float64 {
+func cosineSim(a, b []float32) float64 {
 	n := len(a)
 	if n != len(b) || n == 0 {
 		return 0
 	}
-	var dot, normA, normB float64
+	var dot, normA, normB float32
 	var i int
 	// Procesar de a 4 elementos
 	for i = 0; i <= n-4; i += 4 {
@@ -110,9 +110,9 @@ func cosineSim(a, b []float64) float64 {
 		normA += a[i] * a[i]
 		normB += b[i] * b[i]
 	}
-	denom := math.Sqrt(normA) * math.Sqrt(normB)
+	denom := math.Sqrt(float64(normA)) * math.Sqrt(float64(normB))
 	if denom == 0 {
 		return 0
 	}
-	return (dot/denom + 1) / 2 // normalizar a [0,1]
+	return (float64(dot)/denom + 1) / 2 // normalizar a [0,1]
 }

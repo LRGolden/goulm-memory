@@ -57,7 +57,7 @@ type Capsule struct {
 	Origin       Origin   `json:"origin"`
 	Status       Status   `json:"status"`
 	SupersededOn string   `json:"superseded_on,omitempty"`
-	Embedding    []float64 `json:"embedding,omitempty"`
+	Embedding    []float32 `json:"embedding,omitempty"`
 	EmbeddingDim int       `json:"embedding_dim,omitempty"`
 	Tokens       []string  `json:"tokens,omitempty"` // pre-computed para BM25
 
@@ -258,7 +258,7 @@ func (c *Capsule) Clone() *Capsule {
 	out := *c
 	out.Tags = append([]string(nil), c.Tags...)
 	out.Links = append([]string(nil), c.Links...)
-	out.Embedding = append([]float64(nil), c.Embedding...)
+	out.Embedding = append([]float32(nil), c.Embedding...)
 	out.Tokens = append([]string(nil), c.Tokens...)
 	out.fullText = c.fullText // string, se copia por valor
 	return &out

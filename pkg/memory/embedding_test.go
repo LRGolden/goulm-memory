@@ -12,10 +12,10 @@ type mockEmbedder struct {
 	dim int
 }
 
-func (m *mockEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
-	emb := make([]float64, m.dim)
+func (m *mockEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
+	emb := make([]float32, m.dim)
 	for i := range emb {
-		emb[i] = float64(len(text)) * float64(i+1) / float64(m.dim)
+		emb[i] = float32(float64(len(text)) * float64(i+1) / float64(m.dim))
 	}
 	return emb, nil
 }
@@ -26,8 +26,8 @@ func TestVectorScores(t *testing.T) {
 	provider := &mockEmbedder{dim: 3}
 
 	docs := []*Capsule{
-		{Key: "a", Embedding: []float64{1, 0, 0}},
-		{Key: "b", Embedding: []float64{0, 1, 0}},
+		{Key: "a", Embedding: []float32{1, 0, 0}},
+		{Key: "b", Embedding: []float32{0, 1, 0}},
 		{Key: "c"}, // sin embedding
 	}
 
@@ -47,7 +47,7 @@ func TestVectorScores(t *testing.T) {
 }
 
 func TestVectorScoresNilProvider(t *testing.T) {
-	docs := []*Capsule{{Key: "a", Embedding: []float64{1, 0}}}
+	docs := []*Capsule{{Key: "a", Embedding: []float32{1, 0}}}
 	scores := VectorScores(nil, "test", docs)
 	if len(scores) != 0 {
 		t.Error("con provider nil, scores debe estar vacio")
@@ -56,7 +56,7 @@ func TestVectorScoresNilProvider(t *testing.T) {
 
 func TestVectorScoresEmptyQuery(t *testing.T) {
 	provider := &mockEmbedder{dim: 2}
-	docs := []*Capsule{{Key: "a", Embedding: []float64{1, 0}}}
+	docs := []*Capsule{{Key: "a", Embedding: []float32{1, 0}}}
 	scores := VectorScores(provider, "", docs)
 	if len(scores) != 0 {
 		t.Error("con query vacio, scores debe estar vacio")
@@ -65,14 +65,14 @@ func TestVectorScoresEmptyQuery(t *testing.T) {
 
 func TestCosineSim(t *testing.T) {
 	tests := []struct {
-		a, b []float64
+		a, b []float32
 		want float64
 	}{
-		{[]float64{1, 0}, []float64{1, 0}, 1.0},
-		{[]float64{1, 0}, []float64{0, 1}, 0.5},
-		{[]float64{1, 0}, []float64{-1, 0}, 0.0},
-		{[]float64{}, []float64{}, 0.0},
-		{[]float64{1}, []float64{0, 1}, 0.0},
+		{[]float32{1, 0}, []float32{1, 0}, 1.0},
+		{[]float32{1, 0}, []float32{0, 1}, 0.5},
+		{[]float32{1, 0}, []float32{-1, 0}, 0.0},
+		{[]float32{}, []float32{}, 0.0},
+		{[]float32{1}, []float32{0, 1}, 0.0},
 	}
 
 	for _, tc := range tests {
@@ -86,7 +86,7 @@ func TestCosineSim(t *testing.T) {
 func TestCapsuleEmbeddingField(t *testing.T) {
 	caps := &Capsule{
 		Key:       "test",
-		Embedding: []float64{0.1, 0.2, 0.3},
+		Embedding: []float32{0.1, 0.2, 0.3},
 	}
 
 	clone := caps.Clone()
@@ -100,7 +100,7 @@ func TestCapsuleEmbeddingField(t *testing.T) {
 }
 
 func TestCapsuleEmbeddingJSON(t *testing.T) {
-	caps := &Capsule{Key: "test", Embedding: []float64{0.1, 0.2}}
+	caps := &Capsule{Key: "test", Embedding: []float32{0.1, 0.2}}
 
 	data, err := json.Marshal(caps)
 	if err != nil {
@@ -142,7 +142,7 @@ func TestAmbarEmbeddingRoundtrip(t *testing.T) {
 		{
 			ID: "abc123", Key: "test-key", Category: CategoryDecision,
 			Content: "test content", Date: "2026-01-01",
-			Embedding: []float64{0.123, 0.456, 0.789},
+			Embedding: []float32{0.123, 0.456, 0.789},
 		},
 		{
 			ID: "def456", Key: "test-key-2", Category: CategoryPattern,
@@ -165,7 +165,7 @@ func TestAmbarEmbeddingRoundtrip(t *testing.T) {
 	if len(restored[0].Embedding) != 3 {
 		t.Fatalf("embedding no persistido: len=%d", len(restored[0].Embedding))
 	}
-	if math.Abs(restored[0].Embedding[0]-0.123) > 1e-10 {
+	if math.Abs(float64(restored[0].Embedding[0]-0.123)) > 0.001 {
 		t.Errorf("embedding[0] = %f, want 0.123", restored[0].Embedding[0])
 	}
 
@@ -181,7 +181,7 @@ func TestRememberWithEmbedding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	emb := []float64{0.1, 0.2, 0.3}
+	emb := []float32{0.1, 0.2, 0.3}
 	res, err := store.Remember(RememberOptions{
 		Key:       "auth-jwt",
 		Category:  CategoryDecision,

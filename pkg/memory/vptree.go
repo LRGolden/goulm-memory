@@ -28,7 +28,7 @@ type VPTree struct {
 // a Capsule.Embedding en cada comparación del árbol.
 type indexedCapsule struct {
 	key    string
-	vector []float64
+	vector []float32
 }
 
 // vpNode es un nodo del árbol VP.
@@ -133,7 +133,7 @@ func (t *VPTree) buildRecursive(indices []int, start, end int) {
 // Search encuentra los k nearest neighbors al query vector.
 // maxDist define el radio máximo de búsqueda (distancia euclidiana).
 // Si maxDist <= 0, se usa infinity.
-func (t *VPTree) Search(query []float64, k int, maxDist float64) []SearchResult {
+func (t *VPTree) Search(query []float32, k int, maxDist float64) []SearchResult {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
@@ -161,7 +161,7 @@ func (t *VPTree) Search(query []float64, k int, maxDist float64) []SearchResult 
 }
 
 // searchRecursive busca recursivamente en el árbol.
-func (t *VPTree) searchRecursive(query []float64, nodeIdx int, maxDist *float64, k int, results *[]SearchResult) {
+func (t *VPTree) searchRecursive(query []float32, nodeIdx int, maxDist *float64, k int, results *[]SearchResult) {
 	if nodeIdx < 0 || nodeIdx >= len(t.nodes) {
 		return
 	}
@@ -237,13 +237,13 @@ func (t *VPTree) Len() int {
 
 // euclideanDist calcula la distancia euclidiana entre dos vectores.
 // Utiliza loop unrolling para permitir vectorización SIMD por el compilador.
-func euclideanDist(a, b []float64) float64 {
+func euclideanDist(a, b []float32) float64 {
 	n := len(a)
 	if n != len(b) || n == 0 {
 		return math.MaxFloat64
 	}
 	
-	var sum float64
+	var sum float32
 	var i int
 	// Procesar de a 4 elementos
 	for i = 0; i <= n-4; i += 4 {
@@ -258,7 +258,7 @@ func euclideanDist(a, b []float64) float64 {
 		d := a[i] - b[i]
 		sum += d * d
 	}
-	return math.Sqrt(sum)
+	return math.Sqrt(float64(sum))
 }
 
 type distIdx struct {

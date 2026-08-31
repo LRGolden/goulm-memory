@@ -26,7 +26,7 @@ type RememberOptions struct {
 	PathScope string
 	Origin    Origin
 	Verbatim  bool      // true: sin inferir tags ni recalcular calidad
-	Embedding []float64 // embedding pre-calculado (opcional)
+	Embedding []float32 // embedding pre-calculado (opcional)
 }
 
 // RememberResult describe el resultado de un guardado.
@@ -68,7 +68,7 @@ func (s *MemoryStore) Remember(o RememberOptions) (RememberResult, error) {
 		caps.Confidence = ConfidenceFor(o.Origin)
 	}
 	if len(o.Embedding) > 0 {
-		caps.Embedding = append([]float64(nil), o.Embedding...)
+		caps.Embedding = append([]float32(nil), o.Embedding...)
 		if s.embedder != nil {
 			caps.EmbeddingDim = s.embedder.Dimension()
 		}

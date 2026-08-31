@@ -62,7 +62,7 @@ func MarshalAmbar(project string, capsules []*Capsule) string {
 		if len(c.Embedding) > 0 {
 			parts := make([]string, len(c.Embedding))
 			for i, v := range c.Embedding {
-				parts[i] = strconv.FormatFloat(v, 'f', -1, 64)
+				parts[i] = strconv.FormatFloat(float64(v), 'f', -1, 32)
 			}
 			sb.WriteString("embedding>" + strings.Join(parts, ",") + "\n")
 		}
@@ -179,10 +179,10 @@ func UnmarshalAmbar(data string) (project string, capsules []*Capsule, err error
 			raw := strings.TrimPrefix(line, "embedding>")
 			if raw != "" {
 				parts := strings.Split(raw, ",")
-				emb := make([]float64, 0, len(parts))
+				emb := make([]float32, 0, len(parts))
 				for _, p := range parts {
-					if f, err := strconv.ParseFloat(strings.TrimSpace(p), 64); err == nil {
-						emb = append(emb, f)
+					if f, err := strconv.ParseFloat(strings.TrimSpace(p), 32); err == nil {
+						emb = append(emb, float32(f))
 					}
 				}
 				if len(emb) > 0 {

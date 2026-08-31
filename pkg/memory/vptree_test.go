@@ -8,10 +8,10 @@ import (
 
 func TestVPTreeBuildAndSearch(t *testing.T) {
 	caps := []*Capsule{
-		{Key: "a", Embedding: []float64{1, 0, 0}},
-		{Key: "b", Embedding: []float64{0, 1, 0}},
-		{Key: "c", Embedding: []float64{0, 0, 1}},
-		{Key: "d", Embedding: []float64{1, 1, 0}},
+		{Key: "a", Embedding: []float32{1, 0, 0}},
+		{Key: "b", Embedding: []float32{0, 1, 0}},
+		{Key: "c", Embedding: []float32{0, 0, 1}},
+		{Key: "d", Embedding: []float32{1, 1, 0}},
 	}
 
 	tree := BuildVPTree(caps)
@@ -23,7 +23,7 @@ func TestVPTreeBuildAndSearch(t *testing.T) {
 	}
 
 	// Buscar nearest neighbor a [1,0,0] → debería ser "a" (dist=0).
-	results := tree.Search([]float64{1, 0, 0}, 1, 0)
+	results := tree.Search([]float32{1, 0, 0}, 1, 0)
 	if len(results) != 1 {
 		t.Fatalf("Search devolvió %d resultados, esperaba 1", len(results))
 	}
@@ -42,7 +42,7 @@ func TestVPTreeSearchKNearest(t *testing.T) {
 		angle := float64(i) * 2 * math.Pi / 10
 		caps[i] = &Capsule{
 			Key:       fmt.Sprintf("key-%d", i),
-			Embedding: []float64{math.Cos(angle), math.Sin(angle)},
+			Embedding: []float32{float32(math.Cos(angle)), float32(math.Sin(angle))},
 		}
 	}
 
@@ -52,7 +52,7 @@ func TestVPTreeSearchKNearest(t *testing.T) {
 	}
 
 	// Buscar 3 nearest neighbors a [1,0] (0°).
-	results := tree.Search([]float64{1, 0}, 3, 0)
+	results := tree.Search([]float32{1, 0}, 3, 0)
 	if len(results) != 3 {
 		t.Fatalf("Search devolvió %d resultados, esperaba 3", len(results))
 	}
@@ -72,15 +72,15 @@ func TestVPTreeSearchKNearest(t *testing.T) {
 
 func TestVPTreeSearchWithMaxDist(t *testing.T) {
 	caps := []*Capsule{
-		{Key: "a", Embedding: []float64{0, 0}},
-		{Key: "b", Embedding: []float64{1, 0}},
-		{Key: "c", Embedding: []float64{10, 0}},
+		{Key: "a", Embedding: []float32{0, 0}},
+		{Key: "b", Embedding: []float32{1, 0}},
+		{Key: "c", Embedding: []float32{10, 0}},
 	}
 
 	tree := BuildVPTree(caps)
 
 	// Buscar con radio máximo = 2. Solo "a" y "b" deberían aparecer.
-	results := tree.Search([]float64{0, 0}, 10, 2)
+	results := tree.Search([]float32{0, 0}, 10, 2)
 	if len(results) != 2 {
 		t.Errorf("Search con maxDist=2 devolvió %d resultados, esperaba 2", len(results))
 	}
@@ -106,7 +106,7 @@ func TestVPTreeNoEmbeddings(t *testing.T) {
 func TestVPTreePartialEmbeddings(t *testing.T) {
 	caps := []*Capsule{
 		{Key: "a"},                          // sin embedding
-		{Key: "b", Embedding: []float64{1}}, // con embedding
+		{Key: "b", Embedding: []float32{1}}, // con embedding
 	}
 
 	tree := BuildVPTree(caps)
@@ -127,7 +127,7 @@ func TestVPTreeEmpty(t *testing.T) {
 
 func TestVPTreeSearchEmpty(t *testing.T) {
 	tree := &VPTree{}
-	results := tree.Search([]float64{1, 0}, 5, 0)
+	results := tree.Search([]float32{1, 0}, 5, 0)
 	if len(results) != 0 {
 		t.Errorf("Search en árbol vacío devolvió %d resultados", len(results))
 	}
@@ -135,12 +135,12 @@ func TestVPTreeSearchEmpty(t *testing.T) {
 
 func TestEuclideanDist(t *testing.T) {
 	tests := []struct {
-		a, b []float64
+		a, b []float32
 		want float64
 	}{
-		{[]float64{0, 0}, []float64{0, 0}, 0},
-		{[]float64{0, 0}, []float64{3, 4}, 5},
-		{[]float64{1, 2, 3}, []float64{4, 6, 3}, 5},
+		{[]float32{0, 0}, []float32{0, 0}, 0},
+		{[]float32{0, 0}, []float32{3, 4}, 5},
+		{[]float32{1, 2, 3}, []float32{4, 6, 3}, 5},
 	}
 	for _, tt := range tests {
 		got := euclideanDist(tt.a, tt.b)
