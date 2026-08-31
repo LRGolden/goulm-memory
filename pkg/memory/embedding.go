@@ -90,12 +90,22 @@ func vectorScoresVP(provider EmbeddingProvider, query string, tree *VPTree, docs
 }
 
 // cosineSim calcula la similitud coseno entre dos vectores.
+// Utiliza loop unrolling para permitir vectorización SIMD por el compilador.
 func cosineSim(a, b []float64) float64 {
-	if len(a) != len(b) || len(a) == 0 {
+	n := len(a)
+	if n != len(b) || n == 0 {
 		return 0
 	}
 	var dot, normA, normB float64
-	for i := range a {
+	var i int
+	// Procesar de a 4 elementos
+	for i = 0; i <= n-4; i += 4 {
+		dot += a[i]*b[i] + a[i+1]*b[i+1] + a[i+2]*b[i+2] + a[i+3]*b[i+3]
+		normA += a[i]*a[i] + a[i+1]*a[i+1] + a[i+2]*a[i+2] + a[i+3]*a[i+3]
+		normB += b[i]*b[i] + b[i+1]*b[i+1] + b[i+2]*b[i+2] + b[i+3]*b[i+3]
+	}
+	// Elementos restantes
+	for ; i < n; i++ {
 		dot += a[i] * b[i]
 		normA += a[i] * a[i]
 		normB += b[i] * b[i]

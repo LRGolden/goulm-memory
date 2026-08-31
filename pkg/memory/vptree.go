@@ -101,10 +101,6 @@ func (t *VPTree) buildRecursive(indices []int, start, end int) {
 	}
 
 	// Calcular distancias al pivot.
-	type distIdx struct {
-		dist float64
-		idx  int
-	}
 	dists := make([]distIdx, end-start-1)
 	pivotVec := t.capsules[pivotIdx].vector
 	for i := start + 1; i < end; i++ {
@@ -114,13 +110,11 @@ func (t *VPTree) buildRecursive(indices []int, start, end int) {
 		}
 	}
 
-	// Ordenar por distancia.
-	sort.Slice(dists, func(i, j int) bool {
-		return dists[i].dist < dists[j].dist
-	})
+	// Encontrar la mediana in-place usando quickselect (O(N)).
+	median := len(dists) / 2
+	quickselect(dists, median)
 
 	// El umbral es la mediana de las distancias.
-	median := len(dists) / 2
 	t.nodes[nodeIdx].threshold = dists[median].dist
 
 	// Reordenar indices: [start+1 ... start+1+median] = izquierda, resto = derecha.
@@ -151,15 +145,13 @@ func (t *VPTree) Search(query []float64, k int, maxDist float64) []SearchResult 
 	}
 
 	results := make([]SearchResult, 0, k)
-	t.searchRecursive(query, 0, maxDist, k, &results)
+	// Pasamos maxDist como puntero para que la poda sea efectiva en la recursión
+	t.searchRecursive(query, 0, &maxDist, k, &results)
 
 	// Ordenar por distancia (menor primero).
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Distance < results[j].Distance
 	})
-	if len(results) > k {
-		results = results[:k]
-	}
 
 	// Convertir distancias a scores [0,1] (similitud coseno aproximada).
 	for i := range results {
@@ -169,7 +161,7 @@ func (t *VPTree) Search(query []float64, k int, maxDist float64) []SearchResult 
 }
 
 // searchRecursive busca recursivamente en el árbol.
-func (t *VPTree) searchRecursive(query []float64, nodeIdx int, maxDist float64, k int, results *[]SearchResult) {
+func (t *VPTree) searchRecursive(query []float64, nodeIdx int, maxDist *float64, k int, results *[]SearchResult) {
 	if nodeIdx < 0 || nodeIdx >= len(t.nodes) {
 		return
 	}
@@ -178,23 +170,34 @@ func (t *VPTree) searchRecursive(query []float64, nodeIdx int, maxDist float64, 
 	pivotVec := t.capsules[node.pivotIdx].vector
 	dist := euclideanDist(query, pivotVec)
 
-	// Agregar pivot si está dentro del radio.
-	if dist <= maxDist {
+	// Agregar pivot si está dentro del radio actual.
+	if dist <= *maxDist {
 		*results = append(*results, SearchResult{
 			Key:      t.capsules[node.pivotIdx].key,
 			Distance: dist,
 		})
-		// Si tenemos k resultados, ajustar maxDist al más lejano.
+		
+		// Si tenemos más de k resultados, eliminamos el más lejano.
 		if len(*results) > k {
-			// Encontrar el más lejano.
 			maxIdx := 0
 			for i, r := range *results {
 				if r.Distance > (*results)[maxIdx].Distance {
 					maxIdx = i
 				}
 			}
-			// Eliminar el más lejano.
 			*results = append((*results)[:maxIdx], (*results)[maxIdx+1:]...)
+		}
+		
+		// Si el top-K está lleno, encogemos el radio máximo al peor elemento.
+		// Esto es crucial para el rendimiento O(log N) del VP-Tree.
+		if len(*results) == k {
+			worstDist := -1.0
+			for _, r := range *results {
+				if r.Distance > worstDist {
+					worstDist = r.Distance
+				}
+			}
+			*maxDist = worstDist
 		}
 	}
 
@@ -210,8 +213,8 @@ func (t *VPTree) searchRecursive(query []float64, nodeIdx int, maxDist float64, 
 	// Visitar primer subárbol.
 	t.searchRecursive(query, first, maxDist, k, results)
 
-	// Visitar segundo subárbol solo si el radio intersecta el umbral.
-	if math.Abs(dist-node.threshold) <= maxDist {
+	// Visitar segundo subárbol solo si el radio actual intersecta el umbral.
+	if math.Abs(dist-node.threshold) <= *maxDist {
 		t.searchRecursive(query, second, maxDist, k, results)
 	}
 }
@@ -233,16 +236,61 @@ func (t *VPTree) Len() int {
 // --- Funciones auxiliares ---
 
 // euclideanDist calcula la distancia euclidiana entre dos vectores.
+// Utiliza loop unrolling para permitir vectorización SIMD por el compilador.
 func euclideanDist(a, b []float64) float64 {
-	if len(a) != len(b) {
+	n := len(a)
+	if n != len(b) || n == 0 {
 		return math.MaxFloat64
 	}
+	
 	var sum float64
-	for i := range a {
+	var i int
+	// Procesar de a 4 elementos
+	for i = 0; i <= n-4; i += 4 {
+		d0 := a[i] - b[i]
+		d1 := a[i+1] - b[i+1]
+		d2 := a[i+2] - b[i+2]
+		d3 := a[i+3] - b[i+3]
+		sum += d0*d0 + d1*d1 + d2*d2 + d3*d3
+	}
+	// Elementos restantes
+	for ; i < n; i++ {
 		d := a[i] - b[i]
 		sum += d * d
 	}
 	return math.Sqrt(sum)
+}
+
+type distIdx struct {
+	dist float64
+	idx  int
+}
+
+// quickselect encuentra el k-ésimo elemento más pequeño en el arreglo dists,
+// reordenando los elementos in-place de forma parcial (O(N)).
+func quickselect(dists []distIdx, k int) {
+	left, right := 0, len(dists)-1
+	for left < right {
+		pivotIdx := left + rand.Intn(right-left+1)
+		pivotVal := dists[pivotIdx].dist
+		dists[pivotIdx], dists[right] = dists[right], dists[pivotIdx]
+		storeIdx := left
+		for i := left; i < right; i++ {
+			if dists[i].dist < pivotVal {
+				dists[i], dists[storeIdx] = dists[storeIdx], dists[i]
+				storeIdx++
+			}
+		}
+		dists[storeIdx], dists[right] = dists[right], dists[storeIdx]
+
+		if storeIdx == k {
+			return
+		} else if storeIdx < k {
+			left = storeIdx + 1
+		} else {
+			right = storeIdx - 1
+		}
+	}
 }
 
 // distToScore convierte una distancia euclidiana a un score [0,1].
