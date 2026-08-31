@@ -33,9 +33,9 @@ mitades: puntos mas cercanos al pivot (izquierda) y mas lejanos
 1. **Zero dependencias** — implementacion pura en Go, sin CGo
 2. **Precision aceptable** — ~95% para recall@10
 3. **Memoria** — O(N) adicional (arreglo de structs, no maps)
-4. **Build** — O(N×log N) amortizado, rebuild lazy
-5. **Query** — O(log N×D) con pruning por umbral
-6. **Simple** — ~200 lineas de codigo
+4. **Build** — Estricto O(N×log N) usando Quickselect in-place para la mediana
+5. **Query** — Poda verdadera O(log N) con loop unrolling (SIMD)
+6. **Simple** — ~250 lineas de codigo
 
 ### Por que NO los otros
 

@@ -33,9 +33,9 @@ halves: points closer to the pivot (left) and points farther away
 1. **Zero dependencies** — pure Go implementation, no CGo
 2. **Acceptable accuracy** — ~95% for recall@10
 3. **Memory** — O(N) additional (array of structs, not maps)
-4. **Build** — O(N×log N) amortized, lazy rebuild
-5. **Query** — O(log N×D) with threshold pruning
-6. **Simple** — ~200 lines of code
+4. **Build** — Strict O(N×log N) with in-place Quickselect median finding
+5. **Query** — True O(log N) pruning with SIMD-friendly loop unrolling
+6. **Simple** — ~250 lines of code
 
 ### Why NOT the others
 
