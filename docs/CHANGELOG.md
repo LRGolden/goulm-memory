@@ -4,6 +4,16 @@ Changelog history of `goulm-memory`. Format
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the module follows
 [SemVer](https://semver.org/).
 
+## [0.4.7] — 2026-08-31
+
+Industrial-grade optimization for vector search performance on edge devices.
+
+### Improved
+
+- **VP-Tree pruning** (`pkg/memory/vptree.go`): Search radius now dynamically shrinks as k-nearest neighbors are found. Restores true `O(log N)` search performance instead of degrading to linear scan.
+- **VP-Tree build** (`pkg/memory/vptree.go`): Replaced `sort.Slice` with an in-place `Quickselect` algorithm for finding the median. Build time is now strictly `O(N×log N)`.
+- **Vector distance SIMD** (`pkg/memory/vptree.go`, `pkg/memory/embedding.go`): Loop unrolling implemented for `euclideanDist` and `cosineSim` (blocks of 4) to enable compiler auto-vectorization.
+
 ## [0.4.6] — 2026-08-25
 
 Critical memory fix in Recall + VP-Tree for vector search.
@@ -377,6 +387,7 @@ Initial version. Extracted from the memory subsystem of
 - When working within the Goulm repo (which uses `go.work`), compiling/testing
   this module requires `$env:GOWORK="off"`.
 
+[0.4.7]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.7
 [0.4.6]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.6
 [0.4.5]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.5
 [0.4.4]: https://github.com/LRGolden/goulm-memory/releases/tag/v0.4.4
