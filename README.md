@@ -1,5 +1,8 @@
 # goulm-memory
 
+[![Build Status](https://github.com/LRGolden/goulm-memory/actions/workflows/test.yml/badge.svg)](https://github.com/LRGolden/goulm-memory/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/LRGolden/goulm-memory)](https://goreportcard.com/report/github.com/LRGolden/goulm-memory)
+[![Release](https://img.shields.io/github/v/release/LRGolden/goulm-memory)](https://github.com/LRGolden/goulm-memory/releases/latest)
 [![GoDoc](https://pkg.go.dev/badge/github.com/LRGolden/goulm-memory)](https://pkg.go.dev/github.com/LRGolden/goulm-memory)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/LRGolden/goulm-memory)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
