@@ -19,46 +19,51 @@ Unlike memory solutions that use background LLMs to auto-summarize conversation 
 
 > **Note on Benchmarks:** While `goulm-memory`'s hybrid search pipeline has shown exceptional precision in our internal testing (particularly at isolating exact keyword matches vs semantic noise), we do not treat these internal results as publicly endorsed benchmarks. We welcome and encourage third-party benchmarking to formally validate these results against other memory architectures.
 
-## Installation
+## 🚀 How to use (3 ways)
 
+`goulm-memory` is designed as a universal tool. While it's written in Go, you don't need to write Go to use it. Choose the integration that fits your stack:
+
+### 1. The No-Code Way: AI IDEs (Cursor, Windsurf, Claude)
+Download the standalone **MCP binary** from the Releases tab and plug it directly into your AI assistant. It exposes all memory tools instantly via the Model Context Protocol.
+```json
+// Example Cursor mcp.json configuration
+{
+  "mcpServers": {
+    "goulm-memory": {
+      "command": "/path/to/goulm-memory-mcp",
+      "args": ["-dir", "./vault", "-project", "my-app"]
+    }
+  }
+}
+```
+*📖 See the full [MCP Integration Guide](docs/MCP_INTEGRATION.md).*
+
+### 2. The Python/TS Way: REST API Server
+Building agents in LangChain or LlamaIndex? Skip Docker and heavy databases. Download the **Serve binary** and run it locally. It acts as an ultra-lightweight memory microservice.
+```bash
+./goulm-memory-serve -addr :8080 -dir ./vault
+```
+```python
+# Call it directly from Python or TypeScript
+requests.post("http://localhost:8080/api/v1/remember", json={
+    "key": "arch-decision", "category": "decision", "content": "Use Redis for caching."
+})
+```
+
+### 3. The Go Way: Native Embedded Library
+For absolute maximum performance and zero network latency, embed the engine directly into your Go backend.
 ```bash
 go get github.com/LRGolden/goulm-memory
 ```
-
-## Quick Start
-
 ```go
-package main
+import "github.com/LRGolden/goulm-memory/pkg/memory"
 
-import (
-    "fmt"
-    "path/filepath"
-    "os"
-    "github.com/LRGolden/goulm-memory/pkg/memory"
-)
+store, _ := memory.NewStore(memory.Config{Dir: "./vault", Project: "my-app"})
+defer store.Flush()
 
-func main() {
-    home, _ := os.UserHomeDir()
-    store, _ := memory.NewStore(memory.Config{
-        Dir:     filepath.Join(home, ".goulm-memory", "my-app"),
-        Project: "my-app",
-    })
-    defer store.Flush()
-
-    // Store context
-    store.Remember(memory.RememberOptions{
-        Key:      "auth-jwt",
-        Category: memory.CategoryDecision,
-        Content:  "Use JWT for authentication with 24h expiry",
-        Tags:     []string{"auth", "security"},
-    })
-
-    // Retrieve context
-    ranked, _ := store.Recall("authentication", &memory.Query{Limit: 5})
-    for _, r := range ranked {
-        fmt.Printf("[%.2f] %s\n", r.Score, r.Capsule.Content)
-    }
-}
+store.Remember(memory.RememberOptions{
+    Key: "fact-01", Category: memory.CategoryFact, Content: "Server IP is 10.0.0.5",
+})
 ```
 
 ## Project Structure
