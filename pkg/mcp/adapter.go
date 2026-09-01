@@ -38,7 +38,7 @@ func (a *Adapter) handleInitialize(ctx context.Context, params json.RawMessage) 
 }
 
 func (a *Adapter) handleToolsList(ctx context.Context, params json.RawMessage) (interface{}, error) {
-	allTools := a.reg.All()
+	allTools := a.reg.List()
 	mcpTools := make([]Tool, 0, len(allTools))
 
 	for _, t := range allTools {
