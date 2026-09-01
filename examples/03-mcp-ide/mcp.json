@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "goulm-memory": {
+      "command": "go",
+      "args": [
+        "run",
+        "./cmd/mcp",
+        "-dir", "./mcp-vault",
+        "-project", "my-ai-project"
+      ]
+    }
+  }
+}
