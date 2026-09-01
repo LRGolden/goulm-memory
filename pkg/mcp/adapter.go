@@ -20,8 +20,13 @@ func NewAdapter(reg *tools.Registry) *Adapter {
 // RegisterHandlers registra los métodos "initialize", "tools/list" y "tools/call".
 func (a *Adapter) RegisterHandlers(s *Server) {
 	s.Handle("initialize", a.handleInitialize)
+	s.Handle("ping", a.handlePing)
 	s.Handle("tools/list", a.handleToolsList)
 	s.Handle("tools/call", a.handleToolsCall)
+}
+
+func (a *Adapter) handlePing(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	return map[string]interface{}{}, nil
 }
 
 func (a *Adapter) handleInitialize(ctx context.Context, params json.RawMessage) (interface{}, error) {
