@@ -39,24 +39,24 @@ const (
 // Capsule es la unidad de memoria: un fragmento de conocimiento del proyecto
 // preservado entre sesiones (la "cápsula de ámbar").
 type Capsule struct {
-	ID           string   `json:"id"`
-	Category     Category `json:"category"`
-	Key          string   `json:"key"`
-	Content      string   `json:"content"`
-	File         string   `json:"file,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
-	Date         string   `json:"date"`
-	TTL          string   `json:"ttl,omitempty"`
-	Accessed     int      `json:"accessed"`
-	Links        []string `json:"links,omitempty"`
-	Quality      float64  `json:"quality"`
-	Confidence   float64  `json:"confidence"`
-	LastAccessed string   `json:"last_accessed,omitempty"`
-	Priority     int      `json:"priority"`
-	PathScope    string   `json:"path_scope,omitempty"`
-	Origin       Origin   `json:"origin"`
-	Status       Status   `json:"status"`
-	SupersededOn string   `json:"superseded_on,omitempty"`
+	ID           string    `json:"id"`
+	Category     Category  `json:"category"`
+	Key          string    `json:"key"`
+	Content      string    `json:"content"`
+	File         string    `json:"file,omitempty"`
+	Tags         []string  `json:"tags,omitempty"`
+	Date         string    `json:"date"`
+	TTL          string    `json:"ttl,omitempty"`
+	Accessed     int       `json:"accessed"`
+	Links        []string  `json:"links,omitempty"`
+	Quality      float64   `json:"quality"`
+	Confidence   float64   `json:"confidence"`
+	LastAccessed string    `json:"last_accessed,omitempty"`
+	Priority     int       `json:"priority"`
+	PathScope    string    `json:"path_scope,omitempty"`
+	Origin       Origin    `json:"origin"`
+	Status       Status    `json:"status"`
+	SupersededOn string    `json:"superseded_on,omitempty"`
 	Embedding    []float32 `json:"embedding,omitempty"`
 	EmbeddingDim int       `json:"embedding_dim,omitempty"`
 	Tokens       []string  `json:"tokens,omitempty"` // pre-computed para BM25
@@ -67,10 +67,10 @@ type Capsule struct {
 
 // Constantes de validación.
 const (
-	maxKeyLen    = 128
+	maxKeyLen     = 128
 	maxContentLen = 100 * 1024 // 100 KB
-	maxTags      = 10
-	maxTagLen    = 64
+	maxTags       = 10
+	maxTagLen     = 64
 )
 
 // keyRE valida claves kebab-case (sin colones: están reservados para typed links).

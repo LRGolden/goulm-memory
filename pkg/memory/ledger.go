@@ -61,8 +61,8 @@ type LedgerEvent struct {
 const (
 	EventEdit      = "edit"
 	EventCommit    = "commit"
-	EventBranch    = "branch"    // reservado para futura integracion con git
-	EventCheckout  = "checkout"  // reservado para futura integracion con git
+	EventBranch    = "branch"   // reservado para futura integracion con git
+	EventCheckout  = "checkout" // reservado para futura integracion con git
 	EventMemory    = "memory"
 	EventSession   = "session"
 	EventMilestone = "milestone"

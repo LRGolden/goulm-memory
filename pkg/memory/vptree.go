@@ -176,7 +176,7 @@ func (t *VPTree) searchRecursive(query []float32, nodeIdx int, maxDist *float64,
 			Key:      t.capsules[node.pivotIdx].key,
 			Distance: dist,
 		})
-		
+
 		// Si tenemos más de k resultados, eliminamos el más lejano.
 		if len(*results) > k {
 			maxIdx := 0
@@ -187,7 +187,7 @@ func (t *VPTree) searchRecursive(query []float32, nodeIdx int, maxDist *float64,
 			}
 			*results = append((*results)[:maxIdx], (*results)[maxIdx+1:]...)
 		}
-		
+
 		// Si el top-K está lleno, encogemos el radio máximo al peor elemento.
 		// Esto es crucial para el rendimiento O(log N) del VP-Tree.
 		if len(*results) == k {
@@ -242,7 +242,7 @@ func euclideanDist(a, b []float32) float64 {
 	if n != len(b) || n == 0 {
 		return math.MaxFloat64
 	}
-	
+
 	var sum float32
 	var i int
 	// Procesar de a 4 elementos

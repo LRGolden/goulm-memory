@@ -17,16 +17,16 @@ import (
 
 // Constantes de persistencia.
 const (
-	lockStaleAfter     = 15 * time.Second
-	lockWaitMax        = 10 * time.Second
-	lockRefreshEvery   = 5 * time.Second // heartbeat: refrescar lock mientras se persiste
-	lockMaxClockSkew   = 5 * time.Second // tolerancia de reloj hacia el futuro
-	defaultMaxEntries  = 100
-	defaultMaxBackups  = 10
-	maxNearDupPairs    = 500  // limite de comparaciones Jaccard en Consolidate
-	maxMaxEntries      = 10000 // cap duro para MaxEntries
-	maxMaxBackups      = 100   // cap duro para MaxBackups
-	maxArchiveEntries  = 500   // limite de capsulas en archive
+	lockStaleAfter    = 15 * time.Second
+	lockWaitMax       = 10 * time.Second
+	lockRefreshEvery  = 5 * time.Second // heartbeat: refrescar lock mientras se persiste
+	lockMaxClockSkew  = 5 * time.Second // tolerancia de reloj hacia el futuro
+	defaultMaxEntries = 100
+	defaultMaxBackups = 10
+	maxNearDupPairs   = 500   // limite de comparaciones Jaccard en Consolidate
+	maxMaxEntries     = 10000 // cap duro para MaxEntries
+	maxMaxBackups     = 100   // cap duro para MaxBackups
+	maxArchiveEntries = 500   // limite de capsulas en archive
 )
 
 func nowISO() string { return time.Now().UTC().Format(time.RFC3339) }

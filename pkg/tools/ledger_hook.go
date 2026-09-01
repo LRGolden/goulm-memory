@@ -24,15 +24,15 @@ var (
 )
 
 type LedgerHook struct {
-	ledger   *memory.Ledger
-	ch       chan memory.LedgerEvent
-	done     chan struct{}
-	mu       sync.Mutex
-	session  string
-	lastHead string
-	started  map[string]time.Time
-	drops    int64
-	writes   int64
+	ledger    *memory.Ledger
+	ch        chan memory.LedgerEvent
+	done      chan struct{}
+	mu        sync.Mutex
+	session   string
+	lastHead  string
+	started   map[string]time.Time
+	drops     int64
+	writes    int64
 	closeOnce sync.Once
 }
 
