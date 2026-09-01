@@ -49,5 +49,5 @@ func main() {
 
 	// 6. Print general stats
 	stats, _ := store.Stats()
-	fmt.Printf("\nVault Stats: %d total capsules.\n", stats.TotalCapsules)
+	fmt.Printf("\nVault Stats: %d total capsules.\n", stats.Total)
 }
