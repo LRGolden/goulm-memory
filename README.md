@@ -59,6 +59,7 @@ pkg/memory/   # Core engine: capsules, BM25, graphs, embeddings, Ambar. 100% std
 pkg/tools/    # Registerable tools for agents (memory_*, context_brief).
 cmd/serve/    # Optional HTTP server for Python/TypeScript clients.
 cmd/demo/     # Interactive demo CLI.
+cmd/mcp/      # Standard JSON-RPC stdio server for MCP (Model Context Protocol).
 docs/         # Extended technical documentation.
 ```
 
@@ -70,6 +71,7 @@ docs/         # Extended technical documentation.
 | [API.md](docs/API.md) | Complete public methods reference |
 | [METHODOLOGY.md](docs/METHODOLOGY.md) | **Best Practices:** Context quality, chunking, and noise isolation |
 | [ADVANCED.md](docs/ADVANCED.md) | Sessions, ledgers, and advanced topics |
+| [MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) | Guide to connect with Cursor, Windsurf, Claude |
 | [EMBEDDINGS.md](docs/EMBEDDINGS.md) | Guide to inject AI models (Vector Search) |
 | [CHANGELOG.md](docs/CHANGELOG.md) | Release history and breaking changes |
 
