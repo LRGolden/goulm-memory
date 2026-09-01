@@ -218,7 +218,7 @@ func fileExists(p, cwd string) bool {
 }
 
 func filepathIsAbs(p string) bool {
-	if len(p) >= 2 && p[1] == ':' {
+	if len(p) >= 3 && p[1] == ':' && (p[2] == '/' || p[2] == '\\') {
 		return true
 	}
 	if len(p) >= 1 && (p[0] == '/' || p[0] == '\\') {
