@@ -6,9 +6,18 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/LRGolden/goulm-memory)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Persistent memory for AI agents — a standalone Go module with zero dependencies.
+**The embedded, deterministic memory engine for autonomous AI agents. Pure Go. Zero dependencies.**
 
-Store knowledge capsules (decisions, patterns, bugs, facts) with metadata, search them using a hybrid pipeline (BM25 + graph + VP-Tree vector similarity), and persist them atomically to local disk. No databases, no servers.
+Unlike memory solutions that use background LLMs to auto-summarize conversation history, `goulm-memory` is designed as an explicit knowledge vault. The agent decides exactly what to remember and recall using function calling.
+
+### Design Philosophy
+* **Explicit Storage:** No background LLM costs or automatic summarization noise. Agents invoke `memory_remember` explicitly for technical decisions, facts, or patterns.
+* **Hybrid Retrieval (BM25 + Vectors + RRF):** Pure vector databases often fail to retrieve exact terms (like error codes or IP addresses). This engine implements a hybrid pipeline, using BM25 for lexical precision and VP-Trees for semantic similarity, merged via Reciprocal Rank Fusion (RRF).
+* **Embedded & Zero Dependencies:** Compiles directly into your binary. No external databases (Postgres, Qdrant) or Docker containers required. Ideal for Local-First, Edge AI, and highly private environments.
+* **Append-Only Ledger:** Memory state is saved locally as an immutable log, making agent decisions fully auditable.
+* **MCP Support:** Ships with a standalone Model Context Protocol server (`cmd/mcp`) for instant integration with AI IDEs.
+
+> **Note on Benchmarks:** While `goulm-memory`'s hybrid search pipeline has shown exceptional precision in our internal testing (particularly at isolating exact keyword matches vs semantic noise), we do not treat these internal results as publicly endorsed benchmarks. We welcome and encourage third-party benchmarking to formally validate these results against other memory architectures.
 
 ## Installation
 
