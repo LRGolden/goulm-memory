@@ -4,6 +4,31 @@ Historial de cambios de `goulm-memory`. Formato
 [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); el módulo sigue
 [SemVer](https://semver.org/).
 
+## [0.4.9] — 2026-09-01
+
+**Feature**: Integración nativa con el Model Context Protocol (MCP).
+
+Esta versión introduce un servidor `stdio` JSON-RPC 2.0 de cero dependencias, permitiendo la integración instantánea de `goulm-memory` con IDEs de IA modernos (Cursor, Windsurf, Claude Desktop) y agentes externos.
+
+### Añadido
+- **`pkg/mcp`**: Implementación del núcleo del servidor MCP usando únicamente la librería estándar (`bufio`, `encoding/json`).
+  - `Server`: Maneja el ciclo de vida, parsing y enrutamiento JSON-RPC.
+  - `Adapter`: Conecta el `tools.Registry` a esquemas compatibles con MCP, traduciendo automáticamente los JSON Schemas y enrutando `tools/call`.
+  - Soporta `initialize`, `ping`, `tools/list`, y `tools/call`.
+- **`cmd/mcp`**: Ejecutable independiente dedicado exclusivamente al servidor MCP.
+- **`docs/MCP_INTEGRATION.md`**: Guía para la configuración y despliegue en IDEs.
+
+## [0.4.8] — 2026-08-31
+
+**BREAKING CHANGE**: Migración de `float64` a `float32` para todos los embeddings vectoriales.
+
+Este cambio arquitectónico reduce la huella de memoria (RAM) de la base de datos vectorial exactamente un 50%. Está diseñado específicamente para asegurar estabilidad en hardware Edge AI (ej. Raspberry Pi 5, Smartphones) donde el OS y los modelos LLM compiten agresivamente por la memoria.
+
+### Cambiado
+- **Interfaz EmbeddingProvider** (`pkg/memory/embedding.go`): `Embed()` ahora retorna `[]float32` en vez de `[]float64`. Los implementadores deben actualizar sus proveedores.
+- **Estructura Capsule** (`pkg/memory/capsule.go`): El campo `Embedding` ahora es `[]float32`. Los datos JSON/Ámbar existentes se parsearán correctamente y se adaptarán automáticamente a 32 bits en la lectura sin corrupción.
+- **Matemáticas VP-Tree** (`pkg/memory/vptree.go`): `Search` y las funciones de distancia ahora operan íntegramente en 32 bits para maximizar los aciertos en caché (cache hits) y el rendimiento SIMD.
+
 ## [0.4.7] — 2026-08-31
 
 Optimizacion de grado industrial para rendimiento de busqueda vectorial en dispositivos edge.

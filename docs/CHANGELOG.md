@@ -4,6 +4,20 @@ Changelog history of `goulm-memory`. Format
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the module follows
 [SemVer](https://semver.org/).
 
+## [0.4.9] — 2026-09-01
+
+**Feature**: Native integration with the Model Context Protocol (MCP).
+
+This version introduces a zero-dependency JSON-RPC 2.0 `stdio` server, enabling instant integration of `goulm-memory` with modern AI IDEs (Cursor, Windsurf, Claude Desktop) and external agents.
+
+### Added
+- **`pkg/mcp`**: Core MCP server implementation using only the standard library (`bufio`, `encoding/json`).
+  - `Server`: Handles the JSON-RPC lifecycle, parsing, and routing.
+  - `Adapter`: Bridges `tools.Registry` into MCP-compliant schemas, automatically translating JSON Schemas and routing `tools/call`.
+  - Supports `initialize`, `ping`, `tools/list`, and `tools/call`.
+- **`cmd/mcp`**: Dedicated standalone executable for the MCP server.
+- **`docs/MCP_INTEGRATION.md`**: Guide for IDE configuration and deployment.
+
 ## [0.4.8] — 2026-08-31
 
 **BREAKING CHANGE**: Migration from `float64` to `float32` for all vector embeddings.
