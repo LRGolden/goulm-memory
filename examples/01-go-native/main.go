@@ -22,7 +22,7 @@ func main() {
 
 	// 3. Store a piece of knowledge
 	fmt.Println("--> Remembering a new architectural decision...")
-	err = store.Remember(memory.RememberOptions{
+	_, err = store.Remember(memory.RememberOptions{
 		Key:      "db-decision",
 		Category: memory.CategoryDecision,
 		Content:  "We decided to use PostgreSQL because of its robust JSONB support.",
@@ -48,6 +48,6 @@ func main() {
 	}
 
 	// 6. Print general stats
-	stats := store.Stats()
+	stats, _ := store.Stats()
 	fmt.Printf("\nVault Stats: %d total capsules.\n", stats.TotalCapsules)
 }
