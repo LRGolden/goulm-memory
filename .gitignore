@@ -51,3 +51,5 @@ scripts/
 tmp/
 *.tmp
 *.log
+
+local-memory-vault/
