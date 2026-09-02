@@ -82,6 +82,7 @@ docs/         # Extended technical documentation.
 | Document | Content |
 |----------|---------|
 | [QUICKSTART.md](docs/QUICKSTART.md) | First steps to integrate the library |
+| [PROMPTING.md](docs/PROMPTING.md) | **System Prompts:** How to instruct agents to use the memory vault |
 | [API.md](docs/API.md) | Complete public methods reference |
 | [METHODOLOGY.md](docs/METHODOLOGY.md) | **Best Practices:** Context quality, chunking, and noise isolation |
 | [ADVANCED.md](docs/ADVANCED.md) | Sessions, ledgers, and advanced topics |
